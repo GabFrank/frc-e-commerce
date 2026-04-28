@@ -1,0 +1,45 @@
+{
+  "name": "@frc-e-commerce/backend",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Vendure backend for frc-e-commerce SaaS",
+  "scripts": {
+    "dev:server": "ts-node ./src/index.ts",
+    "dev:worker": "ts-node ./src/index-worker.ts",
+    "dev:dashboard": "vite --clearScreen false",
+    "dev": "concurrently --kill-others npm:dev:server npm:dev:worker",
+    "build": "tsc",
+    "build:dashboard": "vite build",
+    "start:server": "node ./dist/index.js",
+    "start:worker": "node ./dist/index-worker.js",
+    "start": "concurrently npm:start:server npm:start:worker",
+    "lint": "echo \"backend lint pending\" && exit 0",
+    "test": "echo \"backend tests pending\" && exit 0",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo node_modules",
+    "migration:generate": "ts-node ./src/migration.ts generate",
+    "migration:run": "ts-node ./src/migration.ts run",
+    "migration:revert": "ts-node ./src/migration.ts revert"
+  },
+  "dependencies": {
+    "@frc-e-commerce/shared-types": "workspace:*",
+    "@frc-e-commerce/shared-utils": "workspace:*",
+    "@vendure/asset-server-plugin": "3.6.2",
+    "@vendure/core": "3.6.2",
+    "@vendure/dashboard": "3.6.2",
+    "@vendure/email-plugin": "3.6.2",
+    "@vendure/graphiql-plugin": "3.6.2",
+    "@aws-sdk/client-s3": "^3.668.0",
+    "better-sqlite3": "12.9.0",
+    "dotenv": "17.4.2",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@frc-e-commerce/shared-config": "workspace:*",
+    "@types/pg": "^8.11.10",
+    "@vendure/cli": "3.6.2",
+    "concurrently": "9.2.1",
+    "ts-node": "10.9.2",
+    "typescript": "5.8.2"
+  }
+}

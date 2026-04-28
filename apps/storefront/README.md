@@ -1,31 +1,36 @@
-# apps/storefront
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Next.js PWA storefront.
+## Getting Started
 
-**Estado:** placeholder — scaffold pendiente en Fase 2.
-
-## Scaffold pendiente
-
-Opción A — clonar Vendure Next.js Storefront Starter oficial:
+First, run the development server:
 
 ```bash
-cd apps
-npx degit vendure-ecommerce/storefront-remix-starter storefront   # o el starter Next.js cuando esté oficial
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-Opción B — bootstrap Next.js limpio:
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-```bash
-cd apps
-pnpm create next-app@latest storefront --ts --tailwind --app --no-src-dir
-```
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-Luego:
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-1. `name: "@frc-e-commerce/storefront"` en package.json.
-2. Configurar Apollo / urql cliente apuntando a `process.env.SHOP_API_URL`.
-3. Middleware Next.js (`middleware.ts`) que resuelva subdominio → channelToken → header.
-4. Integrar `next-pwa` con manifest + service worker.
-5. Theme tokens (CSS vars) consumibles del plugin `theme-manager`.
+## Learn More
 
-Ver [docs/plan-implementacion.md](../../docs/plan-implementacion.md) Fase 2.
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
