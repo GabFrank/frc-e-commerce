@@ -63,14 +63,17 @@ export async function searchProducts(term = ''): Promise<ProductSummary[]> {
       `,
       variables: { input: { term, take: 24, groupByProduct: true } },
     });
-    return data.search.items.map((it: any) => ({
-      ...it,
-      id: it.productId,
-      priceWithTax:
-        'min' in it.priceWithTax
-          ? it.priceWithTax
-          : { min: it.priceWithTax.value, max: it.priceWithTax.value },
-    }));
+    return data.search.items.map((it) => {
+      const price = it.priceWithTax as
+        | { min: number; max: number }
+        | { value: number };
+      return {
+        ...it,
+        id: it.productId,
+        priceWithTax:
+          'min' in price ? price : { min: price.value, max: price.value },
+      };
+    });
   } catch (err) {
     console.warn('[storefront] searchProducts failed:', err);
     return [];
