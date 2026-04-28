@@ -1,7 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { CurrencyCode, RequestContext, TransactionalConnection } from '@vendure/core';
-import { Repository } from 'typeorm';
 import { CurrencyRate } from '../entities/currency-rate.entity';
 
 @Injectable()
