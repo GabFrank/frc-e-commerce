@@ -1,0 +1,8 @@
+node_modules
+dist
+static/email/test-emails
+*.sqlite*
+.env
+.env.local
+*.log
+.turbo
