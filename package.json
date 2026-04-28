@@ -27,9 +27,5 @@
     "prettier": "^3.3.3",
     "turbo": "^2.2.3",
     "typescript": "^5.6.3"
-  },
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ]
+  }
 }
