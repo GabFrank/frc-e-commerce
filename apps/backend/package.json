@@ -19,7 +19,8 @@
     "clean": "rm -rf dist .turbo node_modules",
     "migration:generate": "ts-node ./src/migration.ts generate",
     "migration:run": "ts-node ./src/migration.ts run",
-    "migration:revert": "ts-node ./src/migration.ts revert"
+    "migration:revert": "ts-node ./src/migration.ts revert",
+    "seed:demo": "ts-node ./scripts/seed-demo-products.ts"
   },
   "dependencies": {
     "@frc-e-commerce/shared-types": "workspace:*",
