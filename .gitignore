@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.pfx
+*.jks
+*.pepk
+secrets/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+*.swp
+*.swo
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Vendure runtime
+apps/backend/static/
+apps/backend/uploads/
+
+# Next.js
+apps/storefront/.next/
+apps/storefront/next-env.d.ts
+
+# Misc
+.cache/
+tmp/
+.tmp/

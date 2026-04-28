@@ -1,0 +1,22 @@
+{
+  "name": "@frc-e-commerce/shared-utils",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Utilidades compartidas: conversión de moneda, validadores, helpers",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"no tests yet\" && exit 0"
+  },
+  "dependencies": {
+    "@frc-e-commerce/shared-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@frc-e-commerce/shared-config": "workspace:*",
+    "typescript": "^5.6.3"
+  }
+}

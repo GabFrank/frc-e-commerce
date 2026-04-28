@@ -1,0 +1,18 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.0.4/schema.json",
+  "changelog": [
+    "@changesets/changelog-github",
+    { "repo": "GabFrank/frc-e-commerce" }
+  ],
+  "commit": false,
+  "fixed": [],
+  "linked": [],
+  "access": "restricted",
+  "baseBranch": "master",
+  "updateInternalDependencies": "patch",
+  "ignore": [
+    "@frc-e-commerce/shared-config",
+    "@frc-e-commerce/shared-types",
+    "@frc-e-commerce/shared-utils"
+  ]
+}

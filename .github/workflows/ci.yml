@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - master
+      - release/beta
+      - develop
+  push:
+    branches:
+      - master
+      - release/beta
+      - develop
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ci:
+    name: lint / typecheck / test / build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Determine Turbo filter
+        id: filter
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "filter=...[origin/${{ github.base_ref }}]" >> "$GITHUB_OUTPUT"
+          else
+            echo "filter=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Lint
+        run: pnpm exec turbo run lint --filter=${{ steps.filter.outputs.filter }}
+
+      - name: Typecheck
+        run: pnpm exec turbo run typecheck --filter=${{ steps.filter.outputs.filter }}
+
+      - name: Test
+        run: pnpm exec turbo run test --filter=${{ steps.filter.outputs.filter }}
+
+      - name: Build
+        run: pnpm exec turbo run build --filter=${{ steps.filter.outputs.filter }}

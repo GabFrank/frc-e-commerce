@@ -1,0 +1,74 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: App a deployar
+        required: true
+        type: choice
+        options:
+          - backend
+          - storefront
+      environment:
+        description: Ambiente destino
+        required: true
+        type: choice
+        options:
+          - alpha
+          - beta
+          - production
+      version:
+        description: Tag a deployar (ej backend@1.2.0). Vacío = HEAD del branch fuente.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.app }} → ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.version || github.ref }}
+
+      - name: Resolve Render service ID
+        id: service
+        run: |
+          case "${{ inputs.app }}-${{ inputs.environment }}" in
+            backend-alpha) echo "id=${{ secrets.RENDER_BACKEND_ALPHA }}" >> "$GITHUB_OUTPUT" ;;
+            backend-beta) echo "id=${{ secrets.RENDER_BACKEND_BETA }}" >> "$GITHUB_OUTPUT" ;;
+            backend-production) echo "id=${{ secrets.RENDER_BACKEND_PROD }}" >> "$GITHUB_OUTPUT" ;;
+            storefront-alpha) echo "id=${{ secrets.RENDER_STOREFRONT_ALPHA }}" >> "$GITHUB_OUTPUT" ;;
+            storefront-beta) echo "id=${{ secrets.RENDER_STOREFRONT_BETA }}" >> "$GITHUB_OUTPUT" ;;
+            storefront-production) echo "id=${{ secrets.RENDER_STOREFRONT_PROD }}" >> "$GITHUB_OUTPUT" ;;
+            *) echo "Unknown combo" && exit 1 ;;
+          esac
+
+      - name: Trigger Render deploy
+        run: |
+          curl -fsSL -X POST \
+            "https://api.render.com/v1/services/${{ steps.service.outputs.id }}/deploys" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"clearCache":"do_not_clear"}'
+
+      - name: Mark GitHub deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: '${{ inputs.version || github.ref }}',
+              environment: '${{ inputs.environment }}',
+              auto_merge: false,
+              required_contexts: [],
+              description: 'Deploy ${{ inputs.app }} via workflow'
+            });

@@ -1,0 +1,35 @@
+{
+  "name": "frc-e-commerce",
+  "version": "0.0.0",
+  "private": true,
+  "description": "FRC E-commerce SaaS — Vendure backend + Next.js storefront monorepo",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.10.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "turbo run build --filter=...[origin/master] && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.9",
+    "prettier": "^3.3.3",
+    "turbo": "^2.2.3",
+    "typescript": "^5.6.3"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

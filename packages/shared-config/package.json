@@ -1,0 +1,14 @@
+{
+  "name": "@frc-e-commerce/shared-config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared base config: tsconfig, eslint, prettier",
+  "files": [
+    "tsconfig.base.json",
+    "eslint.base.cjs"
+  ],
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./eslint.base.cjs": "./eslint.base.cjs"
+  }
+}
