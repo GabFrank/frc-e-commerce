@@ -47,6 +47,8 @@ coverage/
 # Vendure runtime
 apps/backend/static/
 apps/backend/uploads/
+apps/backend/vendure.sqlite*
+apps/backend/package-lock.json
 
 # Next.js
 apps/storefront/.next/

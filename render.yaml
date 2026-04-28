@@ -1,0 +1,183 @@
+# Render Blueprint — frc-e-commerce
+# https://render.com/docs/blueprint-spec
+#
+# Crea automáticamente:
+# - 1 Postgres managed con DBs por env
+# - 6 web services (backend × 3, storefront × 3)
+#
+# Para usar: Render Dashboard → New → Blueprint → conecta este repo.
+
+databases:
+  - name: frc-e-commerce-db
+    plan: starter
+    databaseName: frc_ecommerce_prod
+    postgresMajorVersion: 16
+
+services:
+  # ============== BACKEND ==============
+  - type: web
+    name: backend-alpha
+    runtime: docker
+    plan: starter
+    branch: develop
+    dockerfilePath: apps/backend/Dockerfile
+    dockerContext: .
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: alpha
+      - key: PORT
+        value: '3000'
+      - key: DATABASE_URL
+        fromDatabase:
+          name: frc-e-commerce-db
+          property: connectionString
+      - key: DATABASE_SSL
+        value: 'true'
+      - key: COOKIE_SECRET
+        generateValue: true
+      - key: SUPERADMIN_USERNAME
+        sync: false
+      - key: SUPERADMIN_PASSWORD
+        sync: false
+      - key: STOREFRONT_URL
+        value: https://storefront-alpha.onrender.com
+      - key: CORS_ORIGINS
+        value: https://storefront-alpha.onrender.com
+      # R2 — set manualmente cuando estén las credenciales
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+
+  - type: web
+    name: backend-beta
+    runtime: docker
+    plan: starter
+    branch: release/beta
+    dockerfilePath: apps/backend/Dockerfile
+    dockerContext: .
+    autoDeploy: false
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: beta
+      - key: PORT
+        value: '3000'
+      - key: DATABASE_URL
+        fromDatabase:
+          name: frc-e-commerce-db
+          property: connectionString
+      - key: DATABASE_SSL
+        value: 'true'
+      - key: COOKIE_SECRET
+        generateValue: true
+      - key: SUPERADMIN_USERNAME
+        sync: false
+      - key: SUPERADMIN_PASSWORD
+        sync: false
+      - key: STOREFRONT_URL
+        value: https://storefront-beta.onrender.com
+      - key: CORS_ORIGINS
+        value: https://storefront-beta.onrender.com
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+
+  - type: web
+    name: backend-production
+    runtime: docker
+    plan: starter
+    branch: master
+    dockerfilePath: apps/backend/Dockerfile
+    dockerContext: .
+    autoDeploy: false
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: PORT
+        value: '3000'
+      - key: DATABASE_URL
+        fromDatabase:
+          name: frc-e-commerce-db
+          property: connectionString
+      - key: DATABASE_SSL
+        value: 'true'
+      - key: COOKIE_SECRET
+        generateValue: true
+      - key: SUPERADMIN_USERNAME
+        sync: false
+      - key: SUPERADMIN_PASSWORD
+        sync: false
+      - key: STOREFRONT_URL
+        value: https://frc-e-commerce.com
+      - key: CORS_ORIGINS
+        value: https://frc-e-commerce.com,https://*.frc-e-commerce.com
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+
+  # ============== STOREFRONT ==============
+  - type: web
+    name: storefront-alpha
+    runtime: docker
+    plan: starter
+    branch: develop
+    dockerfilePath: apps/storefront/Dockerfile
+    dockerContext: .
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: '3001'
+      - key: SHOP_API_URL
+        value: https://backend-alpha.onrender.com/shop-api
+      - key: NEXT_PUBLIC_APP_NAME
+        value: frc-e-commerce-alpha
+
+  - type: web
+    name: storefront-beta
+    runtime: docker
+    plan: starter
+    branch: release/beta
+    dockerfilePath: apps/storefront/Dockerfile
+    dockerContext: .
+    autoDeploy: false
+    envVars:
+      - key: PORT
+        value: '3001'
+      - key: SHOP_API_URL
+        value: https://backend-beta.onrender.com/shop-api
+      - key: NEXT_PUBLIC_APP_NAME
+        value: frc-e-commerce-beta
+
+  - type: web
+    name: storefront-production
+    runtime: docker
+    plan: starter
+    branch: master
+    dockerfilePath: apps/storefront/Dockerfile
+    dockerContext: .
+    autoDeploy: false
+    envVars:
+      - key: PORT
+        value: '3001'
+      - key: SHOP_API_URL
+        value: https://backend-production.onrender.com/shop-api
+      - key: NEXT_PUBLIC_APP_NAME
+        value: frc-e-commerce

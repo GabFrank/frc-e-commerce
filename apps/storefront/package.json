@@ -1,0 +1,32 @@
+{
+  "name": "@frc-e-commerce/storefront",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"storefront tests pending\" && exit 0",
+    "clean": "rm -rf .next .turbo node_modules"
+  },
+  "dependencies": {
+    "@frc-e-commerce/shared-types": "workspace:*",
+    "@frc-e-commerce/shared-utils": "workspace:*",
+    "next": "16.2.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@frc-e-commerce/shared-config": "workspace:*",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.4",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
