@@ -24,6 +24,8 @@
   "dependencies": {
     "@frc-e-commerce/shared-types": "workspace:*",
     "@frc-e-commerce/shared-utils": "workspace:*",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/graphql": "^13.0.0",
     "@vendure/asset-server-plugin": "3.6.2",
     "@vendure/core": "3.6.2",
     "@vendure/dashboard": "3.6.2",
@@ -32,7 +34,10 @@
     "@aws-sdk/client-s3": "^3.668.0",
     "better-sqlite3": "12.9.0",
     "dotenv": "17.4.2",
-    "pg": "^8.13.0"
+    "graphql": "^16.9.0",
+    "graphql-tag": "^2.12.6",
+    "pg": "^8.13.0",
+    "typeorm": "^0.3.20"
   },
   "devDependencies": {
     "@frc-e-commerce/shared-config": "workspace:*",
