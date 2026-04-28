@@ -1,13 +1,28 @@
-import { LanguageCode, PluginCommonModule, VendurePlugin } from '@vendure/core';
+import { Asset, LanguageCode, PluginCommonModule, VendurePlugin } from '@vendure/core';
+import { adminSchema, shopSchema } from './api/schema';
+import {
+  TenantAdminResolver,
+  TenantService,
+  TenantShopResolver,
+} from './api/tenant.resolver';
 
 /**
  * tenant-management — Define custom fields en Channel para soportar multi-tenant
- * (subdominio, branding, plan).
+ * (subdominio, branding, plan) + queries para resolver tenant por subdominio.
  *
  * Doc: docs/plugins/tenant-management.md
  */
 @VendurePlugin({
   imports: [PluginCommonModule],
+  providers: [TenantService],
+  adminApiExtensions: {
+    schema: adminSchema,
+    resolvers: [TenantAdminResolver],
+  },
+  shopApiExtensions: {
+    schema: shopSchema,
+    resolvers: [TenantShopResolver],
+  },
   configuration: (config) => {
     config.customFields.Channel.push(
       {
@@ -25,12 +40,12 @@ import { LanguageCode, PluginCommonModule, VendurePlugin } from '@vendure/core';
         nullable: true,
       },
       {
-        name: 'logoAssetId',
+        name: 'logoAsset',
         type: 'relation',
-        entity: require('@vendure/core').Asset,
+        entity: Asset,
         label: [{ languageCode: LanguageCode.es, value: 'Logo' }],
         nullable: true,
-      } as any,
+      },
       {
         name: 'primaryColor',
         type: 'string',

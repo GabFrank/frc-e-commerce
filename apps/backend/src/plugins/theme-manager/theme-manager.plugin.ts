@@ -1,38 +1,32 @@
 import { Args, Query, Resolver } from '@nestjs/graphql';
 import { Injectable } from '@nestjs/common';
 import {
-  Allow,
   Ctx,
-  Permission,
   PluginCommonModule,
   RequestContext,
-  ChannelService,
   Asset,
-  AssetService,
   VendurePlugin,
 } from '@vendure/core';
 import gql from 'graphql-tag';
 
+interface TenantCustomFields {
+  slogan?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  logoAsset?: Asset;
+}
+
 @Injectable()
 class ThemeService {
-  constructor(
-    private channelService: ChannelService,
-    private assetService: AssetService,
-  ) {}
-
   async getActiveTheme(ctx: RequestContext) {
     const channel = ctx.channel;
-    const cf: any = channel.customFields ?? {};
-    let logoUrl: string | null = null;
-    if (cf.logoAssetId) {
-      const asset: Asset | undefined = await this.assetService.findOne(ctx, cf.logoAssetId);
-      logoUrl = asset?.preview ?? asset?.source ?? null;
-    }
+    const cf = (channel.customFields ?? {}) as TenantCustomFields;
     return {
       channelToken: channel.token,
       name: channel.code,
       slogan: cf.slogan ?? null,
-      logoUrl,
+      logoUrl: cf.logoAsset?.preview ?? cf.logoAsset?.source ?? null,
       primaryColor: cf.primaryColor ?? '#1f2937',
       secondaryColor: cf.secondaryColor ?? '#6b7280',
       accentColor: cf.accentColor ?? '#3b82f6',
