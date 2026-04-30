@@ -1,16 +1,16 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { eq, inArray } from 'drizzle-orm';
 import { getCurrentTenant } from '@/lib/tenant';
 import { formatMoney } from '@frc-e-commerce/shared-utils';
 import type { CurrencyCode } from '@frc-e-commerce/shared-utils';
 import { Button } from '@/components/ui/button';
 import { CartLineControls } from '@/components/storefront/cart-line-controls';
+import { getCartWithLines } from '@/lib/actions/cart';
+import { db } from '@/lib/db';
+import { product, productVariant, productImage } from '@frc-e-commerce/db/schema';
 
-// TODO: enable when cart schema and actions are added (Agent B)
-// import { getOrCreateCart } from '@/lib/actions/cart';
-
-// Stub cart line type until Agent B delivers
-interface StubCartLine {
+interface CartLineDisplay {
   id: string;
   variantId: string;
   variantName: string;
@@ -23,43 +23,56 @@ interface StubCartLine {
   imageUrl: string | null;
 }
 
-// Stub data for development — replace with real getOrCreateCart() call
-const STUB_CART_LINES: StubCartLine[] = [
-  {
-    id: 'line-1',
-    variantId: 'v-1',
-    variantName: 'Talle M',
-    productName: 'Remera básica',
-    productSlug: 'remera-basica',
-    unitPrice: 150000,
-    currency: 'PYG',
-    qty: 2,
-    maxStock: 10,
-    imageUrl: null,
-  },
-  {
-    id: 'line-2',
-    variantId: 'v-5',
-    variantName: 'Talle 34',
-    productName: 'Pantalón jean',
-    productSlug: 'pantalon-jean',
-    unitPrice: 280000,
-    currency: 'PYG',
-    qty: 1,
-    maxStock: 7,
-    imageUrl: null,
-  },
-];
-
 export default async function CarritoPage() {
   const tenant = await getCurrentTenant().catch(() => null);
   if (!tenant) notFound();
 
-  // TODO: replace with real cart when Agent B delivers
-  // const cart = await getOrCreateCart();
-  // const lines: StubCartLine[] = cart.lines;
-  const lines = STUB_CART_LINES;
+  const cartData = await getCartWithLines();
   const currency = tenant.defaultCurrency ?? 'PYG';
+
+  let lines: CartLineDisplay[] = [];
+
+  if (cartData && cartData.lines.length > 0) {
+    const variantIds = cartData.lines.map((l) => l.variantId);
+    const variants = await db
+      .select()
+      .from(productVariant)
+      .where(inArray(productVariant.id, variantIds));
+    const productIds = Array.from(new Set(variants.map((v) => v.productId)));
+    const products = productIds.length
+      ? await db.select().from(product).where(inArray(product.id, productIds))
+      : [];
+    const images = productIds.length
+      ? await db.select().from(productImage).where(inArray(productImage.productId, productIds))
+      : [];
+    const firstImageByProduct = new Map<string, string>();
+    for (const img of images.sort((a, b) => (a.position ?? 0) - (b.position ?? 0))) {
+      if (!firstImageByProduct.has(img.productId)) firstImageByProduct.set(img.productId, img.url);
+    }
+    const variantById = new Map(variants.map((v) => [v.id, v]));
+    const productById = new Map(products.map((p) => [p.id, p]));
+
+    lines = cartData.lines
+      .map((line) => {
+        const v = variantById.get(line.variantId);
+        if (!v) return null;
+        const p = productById.get(v.productId);
+        if (!p) return null;
+        return {
+          id: line.id,
+          variantId: line.variantId,
+          variantName: v.name,
+          productName: p.name,
+          productSlug: p.slug,
+          unitPrice: line.unitPrice,
+          currency: cartData.cart.currency,
+          qty: line.quantity,
+          maxStock: v.stock,
+          imageUrl: firstImageByProduct.get(p.id) ?? null,
+        };
+      })
+      .filter((l): l is CartLineDisplay => l !== null);
+  }
 
   const total = lines.reduce((acc, l) => acc + l.unitPrice * l.qty, 0);
   const formattedTotal = formatMoney({ amount: total, currency: currency as CurrencyCode });

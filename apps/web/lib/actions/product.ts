@@ -11,6 +11,8 @@ import {
 } from '@frc-e-commerce/db/schema';
 import { requireTenantMembership } from '@/lib/auth/guards';
 import { requireTenantId } from '@/lib/tenant';
+import { isRedirectError } from '@/lib/actions/_redirect-helper';
+import { deleteR2Object } from '@/lib/r2';
 import {
   createProductSchema,
   updateProductSchema,
@@ -58,6 +60,7 @@ export async function createCategory(
     revalidatePath('/admin/productos');
     return { ok: true, categoryId: created.categoryId };
   } catch (err) {
+    if (isRedirectError(err)) throw err;
     const msg = err instanceof Error ? err.message : 'Error inesperado';
     return { ok: false, error: msg };
   }
@@ -82,6 +85,7 @@ export async function updateCategory(
     revalidatePath('/admin/productos');
     return { ok: true };
   } catch (err) {
+    if (isRedirectError(err)) throw err;
     const msg = err instanceof Error ? err.message : 'Error inesperado';
     return { ok: false, error: msg };
   }
@@ -98,6 +102,7 @@ export async function deleteCategory(id: string): Promise<Result> {
     revalidatePath('/admin/productos');
     return { ok: true };
   } catch (err) {
+    if (isRedirectError(err)) throw err;
     const msg = err instanceof Error ? err.message : 'Error inesperado';
     return { ok: false, error: msg };
   }
@@ -125,6 +130,7 @@ export async function createProduct(
     revalidatePath('/admin/productos');
     return { ok: true, productId: created.productId };
   } catch (err) {
+    if (isRedirectError(err)) throw err;
     const msg = err instanceof Error ? err.message : 'Error inesperado';
     return { ok: false, error: msg };
   }
@@ -150,6 +156,7 @@ export async function updateProduct(
     revalidatePath(`/admin/productos/${id}`);
     return { ok: true };
   } catch (err) {
+    if (isRedirectError(err)) throw err;
     const msg = err instanceof Error ? err.message : 'Error inesperado';
     return { ok: false, error: msg };
   }
@@ -168,6 +175,7 @@ export async function deleteProduct(id: string): Promise<Result> {
     revalidatePath('/admin/productos');
     return { ok: true };
   } catch (err) {
+    if (isRedirectError(err)) throw err;
     const msg = err instanceof Error ? err.message : 'Error inesperado';
     return { ok: false, error: msg };
   }
@@ -201,6 +209,7 @@ export async function createProductVariant(
     revalidatePath(`/admin/productos/${productId}`);
     return { ok: true, variantId: created.variantId };
   } catch (err) {
+    if (isRedirectError(err)) throw err;
     const msg = err instanceof Error ? err.message : 'Error inesperado';
     return { ok: false, error: msg };
   }
@@ -232,6 +241,7 @@ export async function addProductImage(
     revalidatePath(`/admin/productos/${productId}`);
     return { ok: true, imageId: created.imageId };
   } catch (err) {
+    if (isRedirectError(err)) throw err;
     const msg = err instanceof Error ? err.message : 'Error inesperado';
     return { ok: false, error: msg };
   }
@@ -244,6 +254,21 @@ export async function deleteProductImage(
   try {
     const tenantId = await guardTenant();
 
+    // Lookup primero para obtener la r2Key
+    const [img] = await db
+      .select()
+      .from(productImage)
+      .where(
+        and(
+          eq(productImage.id, imageId),
+          eq(productImage.tenantId, tenantId),
+          eq(productImage.productId, productId)
+        )
+      )
+      .limit(1);
+
+    if (!img) return { ok: false, error: 'Imagen no encontrada' };
+
     await db
       .delete(productImage)
       .where(
@@ -254,9 +279,19 @@ export async function deleteProductImage(
         )
       );
 
+    // Borrar de R2 (best-effort — si falla, ya borramos de DB)
+    if (img.r2Key && !img.r2Key.startsWith('stub/')) {
+      try {
+        await deleteR2Object(img.r2Key);
+      } catch (e) {
+        console.warn('[deleteProductImage] R2 delete failed (continuing):', e);
+      }
+    }
+
     revalidatePath(`/admin/productos/${productId}`);
     return { ok: true };
   } catch (err) {
+    if (isRedirectError(err)) throw err;
     const msg = err instanceof Error ? err.message : 'Error inesperado';
     return { ok: false, error: msg };
   }

@@ -19,6 +19,8 @@
     "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1039.0",
+    "@aws-sdk/s3-request-presigner": "^3.1039.0",
     "@frc-e-commerce/db": "workspace:^",
     "@frc-e-commerce/shared-config": "workspace:^",
     "@frc-e-commerce/shared-utils": "workspace:^",

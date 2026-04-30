@@ -32,8 +32,12 @@ export default async function TenantsListPage() {
             </thead>
             <tbody>
               {tenants.map((t) => (
-                <tr key={t.id} className="border-t">
-                  <td className="p-3 font-medium">{t.name}</td>
+                <tr key={t.id} className="border-t hover:bg-zinc-50">
+                  <td className="p-3 font-medium">
+                    <Link href={`/super/tenants/${t.id}`} className="hover:underline">
+                      {t.name}
+                    </Link>
+                  </td>
                   <td className="p-3 font-mono text-xs">{t.slug}</td>
                   <td className="p-3 capitalize">{t.plan}</td>
                   <td className="p-3 capitalize">{t.status}</td>

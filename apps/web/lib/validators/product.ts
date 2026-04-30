@@ -2,6 +2,11 @@ import { z } from 'zod';
 
 const slugRegex = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
+/** UUID opcional. La conversión "" → undefined se hace en el cliente
+ *  (setValueAs en register o limpieza explícita en onSubmit). */
+const optionalUuid = z.string().uuid('UUID inválido').optional();
+const optionalString = z.string().optional();
+
 // ── Category ──────────────────────────────────────────────────────────────────
 
 export const createCategorySchema = z.object({
@@ -11,7 +16,7 @@ export const createCategorySchema = z.object({
     .min(2)
     .max(200)
     .regex(slugRegex, 'Solo a-z, 0-9 y guiones (no al inicio/fin)'),
-  parentId: z.string().uuid('UUID inválido').nullish(),
+  parentId: optionalUuid,
 });
 
 export const updateCategorySchema = createCategorySchema.partial();
@@ -28,9 +33,9 @@ export const createProductSchema = z.object({
     .min(2)
     .max(200)
     .regex(slugRegex, 'Solo a-z, 0-9 y guiones (no al inicio/fin)'),
-  description: z.string().nullish(),
+  description: optionalString,
   status: z.enum(['draft', 'active', 'archived']).default('draft'),
-  categoryId: z.string().uuid('UUID inválido').nullish(),
+  categoryId: optionalUuid,
   /** Price in lowest denomination (centavos / céntimos) */
   basePrice: z
     .number()

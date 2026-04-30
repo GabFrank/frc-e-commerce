@@ -185,4 +185,5 @@ Branch → environment:
 
 ## Plan vivo
 
-`/Users/gabfranck/.claude/plans/puedes-borrar-la-branch-curious-cook.md` (plan maestro Fase 0-8).
+- `/Users/gabfranck/.claude/plans/puedes-borrar-la-branch-curious-cook.md` (plan maestro Fase 0-8).
+- [`TODO.md`](TODO.md) — pendientes técnicos persistentes. **Leer al inicio de cada sesión** antes de avanzar con features nuevas, para no duplicar trabajo y respetar prioridades pactadas.

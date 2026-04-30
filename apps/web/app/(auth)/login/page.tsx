@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -12,8 +12,16 @@ import { Label } from '@/components/ui/label';
 import { authClient } from '@/lib/auth/client';
 import { loginSchema, type LoginInput } from '@/lib/validators/auth';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get('redirect');
+  // Whitelist: solo permitir paths internos (no URLs externas)
+  const safeRedirect =
+    redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')
+      ? redirectParam
+      : null;
+
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
@@ -33,7 +41,7 @@ export default function LoginPage() {
       setServerError(error.message ?? 'Error de login');
       return;
     }
-    router.push('/super');
+    router.push(safeRedirect ?? '/mis-tiendas');
     router.refresh();
   };
 
@@ -59,6 +67,12 @@ export default function LoginPage() {
           <Button type="submit" disabled={isSubmitting} className="w-full">
             {isSubmitting ? 'Ingresando...' : 'Ingresar'}
           </Button>
+          {safeRedirect && (
+            <p className="text-center text-xs text-zinc-500">
+              Después del login serás redirigido a{' '}
+              <code className="bg-zinc-100 px-1 rounded">{safeRedirect}</code>
+            </p>
+          )}
           <p className="text-center text-xs text-zinc-500">
             ¿No tenés cuenta?{' '}
             <Link href="/register" className="underline">
@@ -68,5 +82,13 @@ export default function LoginPage() {
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

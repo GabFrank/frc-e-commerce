@@ -22,7 +22,7 @@ type ProductFormValues = {
   slug: string;
   description: string;
   status: 'draft' | 'active' | 'archived';
-  categoryId: string;
+  categoryId?: string;
   basePrice: number;
   currency: string;
   taxIncluded: boolean;
@@ -53,7 +53,7 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
       slug: initial?.slug ?? '',
       description: initial?.description ?? '',
       status: initial?.status ?? 'draft',
-      categoryId: initial?.categoryId ?? '',
+      categoryId: initial?.categoryId ?? undefined,
       basePrice: initial?.basePrice ?? 0,
       currency: initial?.currency ?? 'PYG',
       taxIncluded: initial?.taxIncluded ?? false,
@@ -65,34 +65,45 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
   const onSubmit: SubmitHandler<ProductFormValues> = async (data) => {
     setServerError(null);
 
-    // Normalize empty strings to undefined for optional fields
+    // Build payload omitting empty optional fields (Server Actions strip
+    // `undefined` values during serialization, but zod v4 distinguishes
+    // between missing key and undefined — safest is to not include them).
     const payload: z.infer<typeof createProductSchema> = {
       name: data.name,
       slug: data.slug,
-      description: data.description || undefined,
       status: data.status,
-      categoryId: data.categoryId || undefined,
       basePrice: data.basePrice,
       currency: data.currency,
       taxIncluded: data.taxIncluded,
     };
+    if (data.description?.trim()) payload.description = data.description.trim();
+    if (data.categoryId) payload.categoryId = data.categoryId;
 
-    if (isEditing) {
-      const res = await updateProduct(initial.id, payload);
-      if (!res.ok) {
-        setServerError(res.error);
-        return;
+    try {
+      if (isEditing) {
+        const res = await updateProduct(initial.id, payload);
+        if (!res.ok) {
+          setServerError(res.error);
+          return;
+        }
+        router.refresh();
+      } else {
+        const res = await createProduct(payload);
+        if (!res.ok) {
+          setServerError(res.error);
+          return;
+        }
+        router.push(`/admin/productos/${res.productId}`);
+        router.refresh();
       }
-      router.refresh();
-    } else {
-      const res = await createProduct(payload);
-      if (!res.ok) {
-        setServerError(res.error);
-        return;
-      }
-      router.push(`/admin/productos/${res.productId}`);
-      router.refresh();
+    } catch (err) {
+      console.error('[ProductForm] submit error:', err);
+      setServerError(err instanceof Error ? err.message : 'Error inesperado al enviar el formulario');
     }
+  };
+
+  const onInvalid = (formErrors: typeof errors) => {
+    console.warn('[ProductForm] validation failed:', formErrors);
   };
 
   return (
@@ -101,7 +112,20 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
         <CardTitle>{isEditing ? 'Editar producto' : 'Nuevo producto'}</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {Object.keys(errors).length > 0 && (
+          <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            <p className="font-medium">Revisá los siguientes campos:</p>
+            <ul className="mt-1 list-disc list-inside text-xs">
+              {Object.entries(errors).map(([field, fieldError]) => (
+                <li key={field}>
+                  <span className="font-medium">{field}:</span>{' '}
+                  {(fieldError as { message?: string })?.message ?? 'inválido'}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-5">
           {/* Nombre */}
           <div className="space-y-1.5">
             <Label htmlFor="name">Nombre</Label>
@@ -153,7 +177,12 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
           {categories.length > 0 && (
             <div className="space-y-1.5">
               <Label htmlFor="categoryId">Categoría</Label>
-              <Select id="categoryId" {...register('categoryId')}>
+              <Select
+                id="categoryId"
+                {...register('categoryId', {
+                  setValueAs: (v) => (v === '' || v == null ? undefined : v),
+                })}
+              >
                 <option value="">Sin categoría</option>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>

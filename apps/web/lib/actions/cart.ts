@@ -1,4 +1,5 @@
 'use server';
+import { isRedirectError } from '@/lib/actions/_redirect-helper';
 
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
@@ -115,6 +116,7 @@ export async function addToCart(
     revalidatePath('/checkout');
     return { ok: true };
   } catch (err) {
+    if (isRedirectError(err)) throw err;
     const message = err instanceof Error ? err.message : 'Error desconocido';
     return { ok: false, error: message };
   }
@@ -150,6 +152,7 @@ export async function updateCartLine(
     revalidatePath('/checkout');
     return { ok: true };
   } catch (err) {
+    if (isRedirectError(err)) throw err;
     const message = err instanceof Error ? err.message : 'Error desconocido';
     return { ok: false, error: message };
   }
@@ -178,6 +181,7 @@ export async function removeCartLine(lineId: string): Promise<RemoveCartLineResu
     revalidatePath('/checkout');
     return { ok: true };
   } catch (err) {
+    if (isRedirectError(err)) throw err;
     const message = err instanceof Error ? err.message : 'Error desconocido';
     return { ok: false, error: message };
   }

@@ -1,47 +1,9 @@
 import { notFound } from 'next/navigation';
+import { and, asc, desc, eq, ilike, sql } from 'drizzle-orm';
 import { getCurrentTenant } from '@/lib/tenant';
 import { ProductCard } from '@/components/storefront/product-card';
-
-// TODO: enable when product schema is added (Agent A)
-// import { db } from '@/lib/db';
-// import { product, category } from '@frc-e-commerce/db/schema';
-// import { and, eq, ilike, asc, desc } from 'drizzle-orm';
-
-// Placeholder types until Agent A delivers schema
-interface PlaceholderProduct {
-  id: string;
-  slug: string;
-  name: string;
-  basePrice: number;
-  currency: string;
-  imageUrl: string | null;
-  categoryId: string | null;
-}
-
-interface PlaceholderCategory {
-  id: string;
-  name: string;
-  slug: string;
-}
-
-// Placeholder data for development
-const PLACEHOLDER_CATEGORIES: PlaceholderCategory[] = [
-  { id: 'cat-1', name: 'Remeras', slug: 'remeras' },
-  { id: 'cat-2', name: 'Pantalones', slug: 'pantalones' },
-  { id: 'cat-3', name: 'Calzado', slug: 'calzado' },
-  { id: 'cat-4', name: 'Accesorios', slug: 'accesorios' },
-];
-
-const PLACEHOLDER_PRODUCTS: PlaceholderProduct[] = [
-  { id: '1', slug: 'remera-basica', name: 'Remera básica', basePrice: 150000, currency: 'PYG', imageUrl: null, categoryId: 'cat-1' },
-  { id: '2', slug: 'remera-estampada', name: 'Remera estampada', basePrice: 180000, currency: 'PYG', imageUrl: null, categoryId: 'cat-1' },
-  { id: '3', slug: 'pantalon-jean', name: 'Pantalón jean', basePrice: 280000, currency: 'PYG', imageUrl: null, categoryId: 'cat-2' },
-  { id: '4', slug: 'pantalon-cargo', name: 'Pantalón cargo', basePrice: 250000, currency: 'PYG', imageUrl: null, categoryId: 'cat-2' },
-  { id: '5', slug: 'zapatillas-urban', name: 'Zapatillas urban', basePrice: 420000, currency: 'PYG', imageUrl: null, categoryId: 'cat-3' },
-  { id: '6', slug: 'buzo-hoodie', name: 'Buzo hoodie', basePrice: 320000, currency: 'PYG', imageUrl: null, categoryId: 'cat-1' },
-  { id: '7', slug: 'gorra-cap', name: 'Gorra cap', basePrice: 90000, currency: 'PYG', imageUrl: null, categoryId: 'cat-4' },
-  { id: '8', slug: 'cinturon-cuero', name: 'Cinturón de cuero', basePrice: 120000, currency: 'PYG', imageUrl: null, categoryId: 'cat-4' },
-];
+import { db } from '@/lib/db';
+import { product, productImage, category } from '@frc-e-commerce/db/schema';
 
 const PAGE_SIZE = 12;
 
@@ -64,59 +26,76 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
   const query = params.q ?? '';
   const sort = params.sort ?? 'name_asc';
 
-  // TODO: enable when product schema is added (Agent A)
-  // const conditions = [
-  //   eq(product.tenantId, tenant.id),
-  //   eq(product.status, 'active'),
-  // ];
-  // if (categorySlug) {
-  //   const [cat] = await db
-  //     .select({ id: category.id })
-  //     .from(category)
-  //     .where(and(eq(category.tenantId, tenant.id), eq(category.slug, categorySlug)))
-  //     .limit(1);
-  //   if (cat) conditions.push(eq(product.categoryId, cat.id));
-  // }
-  // if (query) conditions.push(ilike(product.name, `%${query}%`));
-  // const orderBy = sort === 'price_asc'
-  //   ? asc(product.basePrice)
-  //   : sort === 'price_desc'
-  //     ? desc(product.basePrice)
-  //     : asc(product.name);
-  // const offset = (page - 1) * PAGE_SIZE;
-  // const products = await db
-  //   .select()
-  //   .from(product)
-  //   .where(and(...conditions))
-  //   .orderBy(orderBy)
-  //   .limit(PAGE_SIZE)
-  //   .offset(offset);
-  // const categories = await db
-  //   .select()
-  //   .from(category)
-  //   .where(eq(category.tenantId, tenant.id));
+  const conditions = [eq(product.tenantId, tenant.id), eq(product.status, 'active')];
 
-  // Placeholder filtering/sorting
-  const categories = PLACEHOLDER_CATEGORIES;
-  let products = [...PLACEHOLDER_PRODUCTS];
-
-  if (query) {
-    products = products.filter((p) =>
-      p.name.toLowerCase().includes(query.toLowerCase())
-    );
-  }
+  let categoryId: string | null = null;
   if (categorySlug) {
-    const cat = categories.find((c) => c.slug === categorySlug);
-    if (cat) products = products.filter((p) => p.categoryId === cat.id);
+    const [cat] = await db
+      .select({ id: category.id })
+      .from(category)
+      .where(and(eq(category.tenantId, tenant.id), eq(category.slug, categorySlug)))
+      .limit(1);
+    if (cat) {
+      categoryId = cat.id;
+      conditions.push(eq(product.categoryId, cat.id));
+    }
   }
-  if (sort === 'price_asc') products.sort((a, b) => a.basePrice - b.basePrice);
-  else if (sort === 'price_desc') products.sort((a, b) => b.basePrice - a.basePrice);
-  else products.sort((a, b) => a.name.localeCompare(b.name));
+  if (query) conditions.push(ilike(product.name, `%${query}%`));
 
-  const totalCount = products.length;
+  const orderBy =
+    sort === 'price_asc'
+      ? asc(product.basePrice)
+      : sort === 'price_desc'
+        ? desc(product.basePrice)
+        : asc(product.name);
+
+  const [{ value: totalCount }] = await db
+    .select({ value: sql<number>`count(*)::int` })
+    .from(product)
+    .where(and(...conditions));
+
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const offset = (page - 1) * PAGE_SIZE;
-  const paginatedProducts = products.slice(offset, offset + PAGE_SIZE);
+
+  const productsRaw = await db
+    .select()
+    .from(product)
+    .where(and(...conditions))
+    .orderBy(orderBy)
+    .limit(PAGE_SIZE)
+    .offset(offset);
+
+  // Trae primera imagen de cada producto
+  const productIds = productsRaw.map((p) => p.id);
+  const images = productIds.length
+    ? await db
+        .select()
+        .from(productImage)
+        .where(and(eq(productImage.tenantId, tenant.id)))
+    : [];
+  const firstImageByProduct = new Map<string, string>();
+  for (const img of images.sort((a, b) => (a.position ?? 0) - (b.position ?? 0))) {
+    if (!firstImageByProduct.has(img.productId)) {
+      firstImageByProduct.set(img.productId, img.url);
+    }
+  }
+
+  const paginatedProducts = productsRaw.map((p) => ({
+    id: p.id,
+    slug: p.slug,
+    name: p.name,
+    basePrice: p.basePrice,
+    currency: p.currency,
+    imageUrl: firstImageByProduct.get(p.id) ?? null,
+  }));
+
+  const categories = await db
+    .select({ id: category.id, name: category.name, slug: category.slug })
+    .from(category)
+    .where(eq(category.tenantId, tenant.id))
+    .orderBy(asc(category.name));
+
+  void categoryId;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">

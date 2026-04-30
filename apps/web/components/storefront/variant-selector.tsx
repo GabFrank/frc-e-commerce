@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils/cn';
 
-// Local interface — Agent A will provide the real type from @frc-e-commerce/db/schema
 export interface VariantOption {
   id: string;
   sku: string;
   name: string;
   stock: number;
+  /** Precio del variante en la unidad mínima de la moneda */
+  price: number;
   attributes?: Record<string, string>; // e.g. { color: 'Rojo', talla: 'M' }
 }
 

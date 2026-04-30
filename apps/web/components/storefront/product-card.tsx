@@ -1,8 +1,8 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import { formatMoney } from '@frc-e-commerce/shared-utils';
 import type { CurrencyCode } from '@frc-e-commerce/shared-utils';
 import { cn } from '@/lib/utils/cn';
+import { SafeImage } from './safe-image';
 
 export interface ProductCardProps {
   slug: string;
@@ -24,7 +24,7 @@ export function ProductCard({ slug, name, basePrice, currency, imageUrl, classNa
       <div className="overflow-hidden rounded-xl border bg-card shadow transition-shadow hover:shadow-md">
         <div className="relative aspect-square w-full overflow-hidden bg-zinc-100">
           {imageUrl ? (
-            <Image
+            <SafeImage
               src={imageUrl}
               alt={name}
               fill

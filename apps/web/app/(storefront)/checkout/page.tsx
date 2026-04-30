@@ -1,29 +1,62 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { inArray } from 'drizzle-orm';
 import { getCurrentTenant } from '@/lib/tenant';
 import { formatMoney } from '@frc-e-commerce/shared-utils';
 import type { CurrencyCode } from '@frc-e-commerce/shared-utils';
 import { CheckoutForm } from '@/components/storefront/checkout-form';
+import { getCartWithLines } from '@/lib/actions/cart';
+import { db } from '@/lib/db';
+import { product, productVariant } from '@frc-e-commerce/db/schema';
 
-// TODO: enable when cart schema is added (Agent B)
-// import { getOrCreateCart } from '@/lib/actions/cart';
-
-// Stub cart summary until Agent B delivers
-const STUB_CART_SUMMARY = {
-  lines: [
-    { id: 'line-1', productName: 'Remera básica', variantName: 'Talle M', qty: 2, unitPrice: 150000, currency: 'PYG' },
-    { id: 'line-2', productName: 'Pantalón jean', variantName: 'Talle 34', qty: 1, unitPrice: 280000, currency: 'PYG' },
-  ],
-};
+interface CheckoutLine {
+  id: string;
+  productName: string;
+  variantName: string;
+  qty: number;
+  unitPrice: number;
+  currency: string;
+}
 
 export default async function CheckoutPage() {
   const tenant = await getCurrentTenant().catch(() => null);
   if (!tenant) notFound();
 
-  // TODO: replace with real cart
-  // const cart = await getOrCreateCart();
-  const cart = STUB_CART_SUMMARY;
+  const cartData = await getCartWithLines();
   const currency = tenant.defaultCurrency ?? 'PYG';
+
+  let lines: CheckoutLine[] = [];
+  if (cartData && cartData.lines.length > 0) {
+    const variantIds = cartData.lines.map((l) => l.variantId);
+    const variants = await db
+      .select()
+      .from(productVariant)
+      .where(inArray(productVariant.id, variantIds));
+    const productIds = Array.from(new Set(variants.map((v) => v.productId)));
+    const products = productIds.length
+      ? await db.select().from(product).where(inArray(product.id, productIds))
+      : [];
+    const variantById = new Map(variants.map((v) => [v.id, v]));
+    const productById = new Map(products.map((p) => [p.id, p]));
+    lines = cartData.lines
+      .map((line) => {
+        const v = variantById.get(line.variantId);
+        if (!v) return null;
+        const p = productById.get(v.productId);
+        if (!p) return null;
+        return {
+          id: line.id,
+          productName: p.name,
+          variantName: v.name,
+          qty: line.quantity,
+          unitPrice: line.unitPrice,
+          currency: cartData.cart.currency,
+        };
+      })
+      .filter((l): l is CheckoutLine => l !== null);
+  }
+
+  const cart = { lines };
   const total = cart.lines.reduce((acc, l) => acc + l.unitPrice * l.qty, 0);
   const formattedTotal = formatMoney({ amount: total, currency: currency as CurrencyCode });
 

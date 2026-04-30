@@ -1,4 +1,5 @@
 'use server';
+import { isRedirectError } from '@/lib/actions/_redirect-helper';
 
 import { revalidatePath } from 'next/cache';
 import { eq, and, desc } from 'drizzle-orm';
@@ -162,6 +163,7 @@ export async function createOrderFromCart(input: CreateOrderInput): Promise<Crea
 
     return { ok: true, orderId: createdOrder.id, orderNumber: createdOrder.orderNumber };
   } catch (err) {
+    if (isRedirectError(err)) throw err;
     const message = err instanceof Error ? err.message : 'Error desconocido';
     return { ok: false, error: message };
   }
@@ -200,6 +202,7 @@ export async function markPaymentAsPaid(paymentId: string): Promise<AdminActionR
     revalidatePath(`/admin/pedidos/${p.orderId}`);
     return { ok: true };
   } catch (err) {
+    if (isRedirectError(err)) throw err;
     const message = err instanceof Error ? err.message : 'Error desconocido';
     return { ok: false, error: message };
   }
@@ -237,6 +240,7 @@ export async function cancelOrder(orderId: string): Promise<AdminActionResult> {
     revalidatePath(`/admin/pedidos/${orderId}`);
     return { ok: true };
   } catch (err) {
+    if (isRedirectError(err)) throw err;
     const message = err instanceof Error ? err.message : 'Error desconocido';
     return { ok: false, error: message };
   }

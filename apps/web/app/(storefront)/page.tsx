@@ -1,19 +1,9 @@
 import Link from 'next/link';
+import { and, asc, eq } from 'drizzle-orm';
 import { getCurrentTenant } from '@/lib/tenant';
 import { ProductCard } from '@/components/storefront/product-card';
-
-// TODO: enable when product schema is added (Agent A)
-// import { db } from '@/lib/db';
-// import { product } from '@frc-e-commerce/db/schema';
-// import { and, eq } from 'drizzle-orm';
-
-// Placeholder products for development until Agent A delivers schema
-const PLACEHOLDER_PRODUCTS = [
-  { id: '1', slug: 'remera-basica', name: 'Remera básica', basePrice: 150000, currency: 'PYG', imageUrl: null },
-  { id: '2', slug: 'pantalon-jean', name: 'Pantalón jean', basePrice: 280000, currency: 'PYG', imageUrl: null },
-  { id: '3', slug: 'zapatillas-urban', name: 'Zapatillas urban', basePrice: 420000, currency: 'PYG', imageUrl: null },
-  { id: '4', slug: 'buzo-hoodie', name: 'Buzo hoodie', basePrice: 320000, currency: 'PYG', imageUrl: null },
-];
+import { db } from '@/lib/db';
+import { product, productImage } from '@frc-e-commerce/db/schema';
 
 export default async function StorefrontHomePage() {
   const tenant = await getCurrentTenant().catch(() => null);
@@ -22,13 +12,29 @@ export default async function StorefrontHomePage() {
     return <LandingGenerico />;
   }
 
-  // TODO: enable when product schema is added (Agent A)
-  // const featuredProducts = await db
-  //   .select()
-  //   .from(product)
-  //   .where(and(eq(product.tenantId, tenant.id), eq(product.status, 'active')))
-  //   .limit(8);
-  const featuredProducts = PLACEHOLDER_PRODUCTS;
+  const featuredProductsRaw = await db
+    .select()
+    .from(product)
+    .where(and(eq(product.tenantId, tenant.id), eq(product.status, 'active')))
+    .orderBy(asc(product.createdAt))
+    .limit(8);
+
+  const images = featuredProductsRaw.length
+    ? await db.select().from(productImage).where(eq(productImage.tenantId, tenant.id))
+    : [];
+  const firstImageByProduct = new Map<string, string>();
+  for (const img of images.sort((a, b) => (a.position ?? 0) - (b.position ?? 0))) {
+    if (!firstImageByProduct.has(img.productId)) firstImageByProduct.set(img.productId, img.url);
+  }
+
+  const featuredProducts = featuredProductsRaw.map((p) => ({
+    id: p.id,
+    slug: p.slug,
+    name: p.name,
+    basePrice: p.basePrice,
+    currency: p.currency,
+    imageUrl: firstImageByProduct.get(p.id) ?? null,
+  }));
 
   return (
     <div>
