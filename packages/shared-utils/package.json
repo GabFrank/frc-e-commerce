@@ -12,9 +12,6 @@
     "typecheck": "tsc --noEmit",
     "test": "echo \"no tests yet\" && exit 0"
   },
-  "dependencies": {
-    "@frc-e-commerce/shared-types": "workspace:*"
-  },
   "devDependencies": {
     "@frc-e-commerce/shared-config": "workspace:*",
     "typescript": "^5.6.3"
