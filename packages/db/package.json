@@ -1,0 +1,23 @@
+{
+  "name": "@frc-e-commerce/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "@frc-e-commerce/shared-config": "workspace:*",
+    "@types/node": "^20",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^5.6.3"
+  }
+}

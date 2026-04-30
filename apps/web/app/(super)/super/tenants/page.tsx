@@ -1,0 +1,49 @@
+import Link from 'next/link';
+import { db } from '@/lib/db';
+import { tenant } from '@frc-e-commerce/db/schema';
+import { desc } from 'drizzle-orm';
+import { Button } from '@/components/ui/button';
+
+export default async function TenantsListPage() {
+  const tenants = await db.select().from(tenant).orderBy(desc(tenant.createdAt));
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Tiendas</h1>
+        <Link href="/super/tenants/new">
+          <Button>+ Nueva tienda</Button>
+        </Link>
+      </div>
+
+      {tenants.length === 0 ? (
+        <p className="text-sm text-zinc-500">Aún no hay tiendas. Creá la primera.</p>
+      ) : (
+        <div className="border rounded-md overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-zinc-50 text-zinc-600 text-left">
+              <tr>
+                <th className="p-3">Nombre</th>
+                <th className="p-3">Slug</th>
+                <th className="p-3">Plan</th>
+                <th className="p-3">Estado</th>
+                <th className="p-3">Creada</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tenants.map((t) => (
+                <tr key={t.id} className="border-t">
+                  <td className="p-3 font-medium">{t.name}</td>
+                  <td className="p-3 font-mono text-xs">{t.slug}</td>
+                  <td className="p-3 capitalize">{t.plan}</td>
+                  <td className="p-3 capitalize">{t.status}</td>
+                  <td className="p-3 text-zinc-500">{new Date(t.createdAt).toLocaleDateString('es-PY')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}

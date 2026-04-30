@@ -44,13 +44,14 @@ Thumbs.db
 coverage/
 .nyc_output/
 
-# Vendure runtime
-apps/backend/static/
-apps/backend/uploads/
-
 # Next.js
-apps/storefront/.next/
-apps/storefront/next-env.d.ts
+apps/web/.next/
+apps/web/next-env.d.ts
+
+# Drizzle
+apps/web/drizzle/meta/
+*.db
+*.sqlite
 
 # Misc
 .cache/

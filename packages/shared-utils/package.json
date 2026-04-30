@@ -1,6 +1,7 @@
 {
   "name": "@frc-e-commerce/shared-utils",
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "type": "module",
   "private": true,
   "description": "Utilidades compartidas: conversión de moneda, validadores, helpers",
   "main": "./src/index.ts",
