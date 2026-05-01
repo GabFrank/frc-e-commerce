@@ -9,3 +9,4 @@ export * from './currency';
 export * from './pos-config';
 export * from './cash';
 export * from './inventory';
+export * from './purchase';
