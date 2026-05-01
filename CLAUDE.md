@@ -137,23 +137,34 @@ Filtrado: `pnpm --filter @frc-e-commerce/web <script>`. Node 20 LTS obligatorio 
 
 ## Plugins/Módulos del sistema (referencia)
 
-Los conceptos quedan en `docs/plugins/*.md` desde la era Vendure como **referencia de dominio** (no son plugins literales en este stack). Cada uno se implementa como features dentro de `apps/web`:
+Los conceptos quedan en `docs/plugins/*.md` desde la era Vendure como **referencia de dominio** (no son plugins literales en este stack). Cada uno se implementa como features dentro de `apps/web`.
+
+**Refocus del MVP (2026-05-01):** el MVP ahora es **back-office operativo** (catálogo + POS multi-moneda + caja + compras + reportes). El storefront público + Stripe + emails de orden se difieren a **Fase 2**. Roadmap M1–M7 detallado en [`/Users/gabfranck/.claude/plans/1-no-hace-falta-enumerated-valiant.md`](../../.claude/plans/1-no-hace-falta-enumerated-valiant.md).
 
 | Concepto | Estado | Ubicación |
 |---|---|---|
-| `tenant-management` | ✅ Fase 2 | `lib/actions/tenant.ts`, `app/(super)/super/tenants/` |
-| `currency-rate` | ⏳ Fase 6 | `packages/db/schema/config.ts`, `lib/currency.ts` |
+| `tenant-management` | ✅ | `lib/actions/tenant.ts`, `app/(super)/super/tenants/` |
+| `currency-rate` | 🔴 MVP M1 | `packages/db/schema/currency.ts`, `lib/actions/currency.ts`, `app/(admin)/admin/configuracion/monedas/` |
+| `permissions/RBAC` | 🔴 MVP M1 | `lib/auth/permissions.ts` (capability matrix) |
+| `customer` | 🔴 MVP M2 | `packages/db/schema/customer.ts`, `lib/actions/customer.ts` |
+| `pos-online` | 🔴 MVP M3-M4 | `app/(admin)/admin/pos/`, lector USB-HID-as-keyboard (WebHID post-MVP) |
+| `caja` | 🔴 MVP M4-M5 | `packages/db/schema/cash.ts`, conteo físico por denominación, cierre row-based |
+| `pos-config` | 🔴 MVP M4 | `packages/db/schema/pos-config.ts`, `app/(admin)/admin/configuracion/pos/` |
+| `compras` | 🔴 MVP M6 | `app/(admin)/admin/compras/`, schemas inventory + prorrateo costos extras |
+| `cancelaciones-devoluciones` | 🔴 MVP M7 | extensiones order/order_line + stock_movement con `original_movement_id` |
+| `catalogo-masivo` | 🔴 MVP M7 | import CSV, bulk actions, CRUD categorías UI, branding tenant |
+| `reportes-basicos` | 🔴 MVP M7 | `app/(admin)/admin/reportes/`, Recharts |
+| `email-minimo` (Resend) | 🔴 MVP M7 | solo invitaciones equipo + reset password (templates de orden a Fase 2) |
+| `payment-transferencia` | ✅ | `lib/payments/manual.ts` (canal web) |
+| `payment-contraentrega` | ✅ | `lib/payments/manual.ts` (canal web) |
+| `storefront-publico` | 🟡 Fase 2 | `app/(storefront)/*`, `/cuenta/pedidos/[id]` |
+| `payment-stripe` | 🟡 Fase 2 | `lib/payments/stripe.ts` (stub hasta instalar SDK) |
+| `email-orden-cliente` | 🟡 Fase 2 | templates Resend post-checkout online |
 | `theme-manager` | ⏳ Fase 6 | `lib/themes/`, `app/(storefront)/layout.tsx` (CSS vars inline) |
-| `pos-online` | ⏳ Fase 5 | `app/(admin)/admin/pos/`, WebHID via `navigator.hid` |
-| `compras` | ⏳ Fase 5 | `app/(admin)/admin/compras/`, schemas inventory |
-| `caja` | ⏳ Fase 5+ | TBD |
-| `finanzas` | ⏳ post-MVP | TBD |
-| `cuentas-corrientes` | ⏳ post-MVP | TBD |
-| `payment-transferencia` | ✅ Fase 4 | `lib/payments/manual.ts` |
-| `payment-contraentrega` | ✅ Fase 4 | `lib/payments/manual.ts` |
+| `multi-bodega` | ⏳ post-MVP | `warehouse` + stock por bodega + transferencias |
+| `cuentas-corrientes` | ⏳ post-MVP | fiado a clientes |
 | `payment-bancard` | ⏳ post-MVP | `lib/payments/bancard.ts` |
 | `payment-upay` | ⏳ post-MVP | `lib/payments/upay.ts` |
-| `payment-stripe` | 🚧 Fase 4 | `lib/payments/stripe.ts` (stub hasta instalar SDK) |
 | `sifen-bridge` | ⏳ post-MVP | Llamadas a `frc-efact` API externa |
 
 ## Despliegue
