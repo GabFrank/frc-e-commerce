@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getCurrentTenant } from '@/lib/tenant';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default async function StorefrontLayout({ children }: { children: React.ReactNode }) {
   const tenant = await getCurrentTenant().catch(() => null);
@@ -23,6 +24,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
             <Link href="/productos" className="hover:underline">Productos</Link>
             <Link href="/carrito" className="hover:underline">Carrito</Link>
             <Link href="/cuenta" className="hover:underline">Cuenta</Link>
+            <ThemeToggle />
           </nav>
         </div>
       </header>

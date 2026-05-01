@@ -7,6 +7,7 @@ import { getCurrentTenant, TENANT_OVERRIDE_COOKIE } from '@/lib/tenant';
 import { db } from '@/lib/db';
 import { user as userTable } from '@frc-e-commerce/db/schema';
 import { ExitTenantOverrideButton } from '@/components/admin/exit-tenant-override-button';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const tenant = await getCurrentTenant().catch(() => null);
@@ -56,9 +57,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </Link>
         </nav>
         <div className="mt-auto pt-4 border-t text-xs space-y-2">
-          <div>
-            <p className="text-zinc-500 truncate">{session.user.email}</p>
-            <p className="mt-1 text-zinc-400">Rol: {membership.role}</p>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-zinc-500 truncate">{session.user.email}</p>
+              <p className="mt-1 text-zinc-400">Rol: {membership.role}</p>
+            </div>
+            <ThemeToggle />
           </div>
           <Link
             href="/mis-tiendas"
