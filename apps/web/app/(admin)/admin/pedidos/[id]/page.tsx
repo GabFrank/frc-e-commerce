@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { eq, inArray } from 'drizzle-orm';
 import { formatMoney } from '@frc-e-commerce/shared-utils';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,9 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getOrderDetail, markPaymentAsPaid, cancelOrder } from '@/lib/actions/order';
+import { PosOrderActions } from '@/components/admin/pedidos/PosOrderActions';
+import { db } from '@/lib/db';
+import { productVariant } from '@frc-e-commerce/db/schema';
 import type { OrderStatus, PaymentStatus } from '@frc-e-commerce/db/schema';
 import type { CurrencyCode } from '@frc-e-commerce/shared-utils';
 
@@ -56,6 +60,16 @@ export default async function PedidoDetailPage({ params }: PageProps) {
   const { order: o, lines, payments } = detail;
   const primaryPayment = payments[0] ?? null;
   const currency = o.currency as CurrencyCode;
+
+  // Cargar info de variantes para mostrar nombre + SKU + permitir devoluciones
+  const variantIds = lines.map((l) => l.variantId);
+  const variants = variantIds.length
+    ? await db
+        .select({ id: productVariant.id, sku: productVariant.sku, name: productVariant.name })
+        .from(productVariant)
+        .where(inArray(productVariant.id, variantIds))
+    : [];
+  const variantMap = new Map(variants.map((v) => [v.id, v]));
 
   const orderBadge = orderStatusLabel(o.status);
   const paymentBadge = primaryPayment ? paymentStatusLabel(primaryPayment.status) : null;
@@ -242,7 +256,7 @@ export default async function PedidoDetailPage({ params }: PageProps) {
             </Button>
           </form>
         )}
-        {canCancel && (
+        {canCancel && o.channel !== 'pos' && (
           <form
             action={async () => {
               'use server';
@@ -255,6 +269,27 @@ export default async function PedidoDetailPage({ params }: PageProps) {
           </form>
         )}
       </div>
+
+      {o.channel === 'pos' && (
+        <PosOrderActions
+          orderId={o.id}
+          channel={o.channel}
+          status={o.status}
+          lines={lines.map((l) => {
+            const v = variantMap.get(l.variantId);
+            return {
+              id: l.id,
+              variantId: l.variantId,
+              variantSku: v?.sku ?? null,
+              variantName: v?.name ?? null,
+              quantity: l.quantity,
+              returnedQuantity: l.returnedQuantity,
+              cancelledQuantity: l.cancelledQuantity,
+              unitPrice: l.unitPrice,
+            };
+          })}
+        />
+      )}
     </div>
   );
 }

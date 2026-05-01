@@ -284,6 +284,8 @@ export interface OrderDetail {
     unitPrice: number;
     totalPrice: number;
     costSnapshot: number | null;
+    returnedQuantity: number;
+    cancelledQuantity: number;
   }>;
   payments: Payment[];
 }
