@@ -55,6 +55,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/admin/configuracion" className="rounded px-2 py-1.5 hover:bg-muted">
             Configuración
           </Link>
+          <Link
+            href="/pos"
+            className="mt-2 rounded bg-primary px-2 py-1.5 text-center font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Abrir POS →
+          </Link>
         </nav>
         <div className="mt-auto pt-4 border-t text-xs space-y-2">
           <div className="flex items-center justify-between gap-2">

@@ -3,5 +3,7 @@ export * from './user';
 export * from './tenant-member';
 export * from './product';
 export * from './cart';
+export * from './customer';
 export * from './order';
 export * from './currency';
+export * from './pos-config';

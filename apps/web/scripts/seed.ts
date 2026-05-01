@@ -15,6 +15,7 @@ async function main() {
     denomination,
     tenantCurrency,
     exchangeRate,
+    posConfig,
   } = await import('@frc-e-commerce/db/schema');
   const { and } = await import('drizzle-orm');
 
@@ -202,6 +203,29 @@ async function main() {
     });
   }
   console.log('exchange_rate inicial sembrado');
+
+  // 7. pos_config default para tenant demo
+  const [existingPosConfig] = await db
+    .select()
+    .from(posConfig)
+    .where(eq(posConfig.tenantId, demoTenantId))
+    .limit(1);
+  if (!existingPosConfig) {
+    await db.insert(posConfig).values({
+      tenantId: demoTenantId,
+      enabledCurrencies: ['PYG', 'USD', 'BRL'],
+      pricingDisplayCurrencies: ['PYG', 'USD'],
+      paymentMethods: ['efectivo', 'transferencia', 'tarjeta_pos'],
+      searchShowImages: true,
+      showCostToAdmin: true,
+      strictStock: false,
+      ticketPrefix: 'POS',
+      ticketCorrelative: 0,
+      receiptHeader: 'Tienda Demo\nGracias por su compra',
+      receiptFooter: 'No vale como factura legal',
+    });
+    console.log('pos_config default creado para demo');
+  }
 
   console.log('Seed completado.');
   process.exit(0);
