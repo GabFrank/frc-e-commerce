@@ -56,24 +56,24 @@ function LoginForm() {
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
             <Input id="email" type="email" autoComplete="email" {...register('email')} />
-            {errors.email && <p className="text-xs text-red-600">{errors.email.message}</p>}
+            {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="password">Contraseña</Label>
             <Input id="password" type="password" autoComplete="current-password" {...register('password')} />
-            {errors.password && <p className="text-xs text-red-600">{errors.password.message}</p>}
+            {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
           </div>
-          {serverError && <p className="text-sm text-red-600">{serverError}</p>}
+          {serverError && <p className="text-sm text-destructive">{serverError}</p>}
           <Button type="submit" disabled={isSubmitting} className="w-full">
             {isSubmitting ? 'Ingresando...' : 'Ingresar'}
           </Button>
           {safeRedirect && (
-            <p className="text-center text-xs text-zinc-500">
+            <p className="text-center text-xs text-muted-foreground">
               Después del login serás redirigido a{' '}
-              <code className="bg-zinc-100 px-1 rounded">{safeRedirect}</code>
+              <code className="bg-muted px-1 rounded">{safeRedirect}</code>
             </p>
           )}
-          <p className="text-center text-xs text-zinc-500">
+          <p className="text-center text-xs text-muted-foreground">
             ¿No tenés cuenta?{' '}
             <Link href="/register" className="underline">
               Crear cuenta

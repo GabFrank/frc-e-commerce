@@ -50,7 +50,7 @@ export default async function PedidosPage({ searchParams }: PageProps) {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Pedidos</h1>
-        <span className="text-sm text-zinc-500">
+        <span className="text-sm text-muted-foreground">
           {orders.length} pedido{orders.length !== 1 ? 's' : ''}
         </span>
       </div>
@@ -63,8 +63,8 @@ export default async function PedidosPage({ searchParams }: PageProps) {
             href={opt.value ? `/admin/pedidos?status=${opt.value}` : '/admin/pedidos'}
             className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
               (status ?? '') === opt.value
-                ? 'bg-zinc-900 text-white border-zinc-900'
-                : 'bg-white text-zinc-700 border-zinc-200 hover:border-zinc-400'
+                ? 'bg-foreground text-background border-foreground'
+                : 'bg-background text-foreground/80 border-border hover:border-foreground/40'
             }`}
           >
             {opt.label}
@@ -73,7 +73,7 @@ export default async function PedidosPage({ searchParams }: PageProps) {
       </div>
 
       {orders.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center text-zinc-500">
+        <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
           <p className="text-lg font-medium">No hay pedidos</p>
           <p className="mt-1 text-sm">
             {status ? `Sin pedidos con estado "${status}"` : 'Aún no se recibieron pedidos'}
@@ -111,17 +111,17 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                     </TableCell>
                     <TableCell>
                       <div>{o.customerName}</div>
-                      <div className="text-xs text-zinc-500">{o.customerEmail}</div>
+                      <div className="text-xs text-muted-foreground">{o.customerEmail}</div>
                     </TableCell>
                     <TableCell className="font-medium">{formattedTotal}</TableCell>
                     <TableCell>
                       <Badge variant={variant}>{label}</Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-zinc-500">{formattedDate}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{formattedDate}</TableCell>
                     <TableCell className="text-right">
                       <Link
                         href={`/admin/pedidos/${o.id}`}
-                        className="text-sm font-medium text-blue-600 hover:underline"
+                        className="text-sm font-medium text-primary hover:underline"
                       >
                         Ver detalle
                       </Link>

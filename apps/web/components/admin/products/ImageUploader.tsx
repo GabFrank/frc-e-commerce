@@ -100,7 +100,7 @@ export function ImageUploader({ productId, tenantSlug, images: initialImages }: 
         {images.map((img, i) => (
           <div
             key={img.id}
-            className="group relative aspect-square overflow-hidden rounded-lg border bg-zinc-50"
+            className="group relative aspect-square overflow-hidden rounded-lg border bg-muted/50"
           >
             <button
               type="button"
@@ -123,7 +123,7 @@ export function ImageUploader({ productId, tenantSlug, images: initialImages }: 
                 e.stopPropagation();
                 setConfirmDeleteId(img.id);
               }}
-              className="absolute top-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-zinc-700 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white"
+              className="absolute top-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-foreground/80 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-white"
               aria-label="Eliminar imagen"
               title="Eliminar"
             >
@@ -142,7 +142,7 @@ export function ImageUploader({ productId, tenantSlug, images: initialImages }: 
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="group flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-zinc-300 bg-zinc-50 text-zinc-500 hover:border-primary hover:bg-zinc-100 hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="group flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-muted/50 text-muted-foreground hover:border-primary hover:bg-muted hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {uploading ? (
             <>
@@ -159,7 +159,7 @@ export function ImageUploader({ productId, tenantSlug, images: initialImages }: 
                 <path d="M12 8v8M8 12h8" />
               </svg>
               <span className="text-xs font-medium">Subir imagen</span>
-              <span className="text-[10px] text-zinc-400">JPG, PNG, WEBP</span>
+              <span className="text-[10px] text-muted-foreground/80">JPG, PNG, WEBP</span>
             </>
           )}
         </button>
@@ -174,7 +174,7 @@ export function ImageUploader({ productId, tenantSlug, images: initialImages }: 
         onChange={handleFileChange}
       />
 
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
 
       {lightboxIndex !== null && (
         <ImageLightbox
@@ -190,11 +190,11 @@ export function ImageUploader({ productId, tenantSlug, images: initialImages }: 
           onClick={() => setConfirmDeleteId(null)}
         >
           <div
-            className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl"
+            className="w-full max-w-sm rounded-xl bg-card text-card-foreground p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold">Eliminar imagen</h3>
-            <p className="mt-2 text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-muted-foreground">
               ¿Seguro que querés eliminar esta imagen? La acción no se puede deshacer.
             </p>
             <div className="mt-5 flex justify-end gap-2">

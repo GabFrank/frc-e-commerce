@@ -153,7 +153,7 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
         {/* Grid de productos */}
         <div className="flex-1">
           {paginatedProducts.length === 0 ? (
-            <div className="flex min-h-60 flex-col items-center justify-center gap-3 rounded-xl border border-dashed text-zinc-400">
+            <div className="flex min-h-60 flex-col items-center justify-center gap-3 rounded-xl border border-dashed text-muted-foreground/80">
               <p className="text-sm">No se encontraron productos.</p>
               {query && (
                 <a href="/productos" className="text-xs underline">
@@ -163,7 +163,7 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
             </div>
           ) : (
             <>
-              <p className="mb-4 text-xs text-zinc-500">
+              <p className="mb-4 text-xs text-muted-foreground">
                 {totalCount} {totalCount === 1 ? 'producto' : 'productos'} encontrados
               </p>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
@@ -241,8 +241,8 @@ function CategoryLink({
   return (
     <a
       href={href}
-      className={`block rounded px-2 py-1 transition-colors hover:bg-zinc-100 ${
-        active ? 'font-medium text-primary' : 'text-zinc-700'
+      className={`block rounded px-2 py-1 transition-colors hover:bg-muted ${
+        active ? 'font-medium text-primary' : 'text-foreground/80'
       }`}
     >
       {label}
@@ -267,8 +267,8 @@ function SortLink({
   return (
     <a
       href={href}
-      className={`block rounded px-2 py-1 transition-colors hover:bg-zinc-100 ${
-        active ? 'font-medium text-primary' : 'text-zinc-700'
+      className={`block rounded px-2 py-1 transition-colors hover:bg-muted ${
+        active ? 'font-medium text-primary' : 'text-foreground/80'
       }`}
     >
       {label}
@@ -296,7 +296,7 @@ function PaginationLink({
       className={`flex h-8 w-8 items-center justify-center rounded text-sm transition-colors ${
         active
           ? 'bg-primary text-primary-foreground font-medium'
-          : 'border hover:bg-zinc-50 text-zinc-700'
+          : 'border hover:bg-muted/50 text-foreground/80'
       }`}
     >
       {page}

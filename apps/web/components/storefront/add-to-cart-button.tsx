@@ -62,7 +62,7 @@ export function AddToCartButton({ variants, unitPrice }: AddToCartButtonProps) {
       {message && (
         <p
           className={`text-sm ${
-            status === 'success' ? 'text-green-600' : 'text-red-600'
+            status === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'
           }`}
         >
           {message}

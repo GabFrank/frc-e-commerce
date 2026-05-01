@@ -113,7 +113,7 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
       </CardHeader>
       <CardContent>
         {Object.keys(errors).length > 0 && (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <div className="mb-4 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
             <p className="font-medium">Revisá los siguientes campos:</p>
             <ul className="mt-1 list-disc list-inside text-xs">
               {Object.entries(errors).map(([field, fieldError]) => (
@@ -138,7 +138,7 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
                 }
               }}
             />
-            {errors.name && <p className="text-xs text-red-600">{errors.name.message}</p>}
+            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
           </div>
 
           {/* Slug */}
@@ -149,8 +149,8 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
               placeholder={slugify(nameValue ?? '')}
               {...register('slug')}
             />
-            {errors.slug && <p className="text-xs text-red-600">{errors.slug.message}</p>}
-            <p className="text-xs text-zinc-500">Identificador único en la URL del producto.</p>
+            {errors.slug && <p className="text-xs text-destructive">{errors.slug.message}</p>}
+            <p className="text-xs text-muted-foreground">Identificador único en la URL del producto.</p>
           </div>
 
           {/* Descripción */}
@@ -158,7 +158,7 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
             <Label htmlFor="description">Descripción</Label>
             <Textarea id="description" rows={4} {...register('description')} />
             {errors.description && (
-              <p className="text-xs text-red-600">{errors.description.message}</p>
+              <p className="text-xs text-destructive">{errors.description.message}</p>
             )}
           </div>
 
@@ -170,7 +170,7 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
               <option value="active">Activo</option>
               <option value="archived">Archivado</option>
             </Select>
-            {errors.status && <p className="text-xs text-red-600">{errors.status.message}</p>}
+            {errors.status && <p className="text-xs text-destructive">{errors.status.message}</p>}
           </div>
 
           {/* Categoría */}
@@ -204,9 +204,9 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
                 {...register('basePrice', { valueAsNumber: true })}
               />
               {errors.basePrice && (
-                <p className="text-xs text-red-600">{errors.basePrice.message}</p>
+                <p className="text-xs text-destructive">{errors.basePrice.message}</p>
               )}
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-muted-foreground">
                 En la unidad mínima de la moneda. Para PYG: guaraníes enteros.
               </p>
             </div>
@@ -235,7 +235,7 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
             </Label>
           </div>
 
-          {serverError && <p className="text-sm text-red-600">{serverError}</p>}
+          {serverError && <p className="text-sm text-destructive">{serverError}</p>}
 
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting

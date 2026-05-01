@@ -42,7 +42,7 @@ export default function NewTenantPage() {
 
   return (
     <div className="max-w-md space-y-4">
-      <Link href="/super/tenants" className="text-sm text-zinc-500 hover:underline">
+      <Link href="/super/tenants" className="text-sm text-muted-foreground hover:underline">
         ← Volver
       </Link>
       <Card>
@@ -61,13 +61,13 @@ export default function NewTenantPage() {
                   if (!watch('slug')) setValue('slug', slugify(e.target.value));
                 }}
               />
-              {errors.name && <p className="text-xs text-red-600">{errors.name.message}</p>}
+              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="slug">Slug (subdominio)</Label>
               <Input id="slug" placeholder={slugify(name ?? '')} {...register('slug')} />
-              {errors.slug && <p className="text-xs text-red-600">{errors.slug.message}</p>}
-              <p className="text-xs text-zinc-500">URL: <span className="font-mono">{watch('slug') || '<slug>'}.frc-ecommerce.com</span></p>
+              {errors.slug && <p className="text-xs text-destructive">{errors.slug.message}</p>}
+              <p className="text-xs text-muted-foreground">URL: <span className="font-mono">{watch('slug') || '<slug>'}.frc-ecommerce.com</span></p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="plan">Plan</Label>
@@ -82,7 +82,7 @@ export default function NewTenantPage() {
                 <option value="enterprise">Enterprise</option>
               </select>
             </div>
-            {serverError && <p className="text-sm text-red-600">{serverError}</p>}
+            {serverError && <p className="text-sm text-destructive">{serverError}</p>}
             <Button type="submit" disabled={isSubmitting} className="w-full">
               {isSubmitting ? 'Creando...' : 'Crear tienda'}
             </Button>

@@ -51,7 +51,7 @@ export default async function EditProductPage({ params }: Props) {
   return (
     <div className="max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
-        <Link href="/admin/productos" className="text-sm text-zinc-500 hover:underline">
+        <Link href="/admin/productos" className="text-sm text-muted-foreground hover:underline">
           ← Volver a productos
         </Link>
       </div>

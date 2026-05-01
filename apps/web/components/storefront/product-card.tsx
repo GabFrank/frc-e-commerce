@@ -22,7 +22,7 @@ export function ProductCard({ slug, name, basePrice, currency, imageUrl, classNa
   return (
     <Link href={`/productos/${slug}`} className={cn('group block', className)}>
       <div className="overflow-hidden rounded-xl border bg-card shadow transition-shadow hover:shadow-md">
-        <div className="relative aspect-square w-full overflow-hidden bg-zinc-100">
+        <div className="relative aspect-square w-full overflow-hidden bg-muted">
           {imageUrl ? (
             <SafeImage
               src={imageUrl}
@@ -32,7 +32,7 @@ export function ProductCard({ slug, name, basePrice, currency, imageUrl, classNa
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-zinc-300">
+            <div className="flex h-full items-center justify-center text-muted-foreground/60">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="64"

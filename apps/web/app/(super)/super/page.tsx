@@ -13,11 +13,11 @@ export default async function SuperHome() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm text-zinc-500">Tiendas activas</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Tiendas activas</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">{tenantCount ?? 0}</p>
-            <Link href="/super/tenants" className="text-xs text-blue-600 underline">
+            <Link href="/super/tenants" className="text-xs text-primary underline">
               Ver todas
             </Link>
           </CardContent>

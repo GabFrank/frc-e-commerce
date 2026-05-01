@@ -60,7 +60,7 @@ export default function PlanesPage() {
     <div className="space-y-6 max-w-5xl">
       <div>
         <h1 className="text-2xl font-semibold">Planes</h1>
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted-foreground">
           Vista informativa. Edición de planes y billing llegan post-MVP (Stripe Billing).
         </p>
       </div>
@@ -80,7 +80,7 @@ export default function PlanesPage() {
                     ? 'Gratis'
                     : `Gs. ${plan.price.toLocaleString('es-PY')}/mes`}
               </p>
-              <ul className="text-xs space-y-1 text-zinc-600">
+              <ul className="text-xs space-y-1 text-muted-foreground">
                 {plan.features.map((f) => (
                   <li key={f}>✓ {f}</li>
                 ))}

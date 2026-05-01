@@ -39,16 +39,16 @@ export default async function StorefrontHomePage() {
   return (
     <div>
       {/* Hero */}
-      <section className="border-b bg-zinc-50 py-16 text-center">
+      <section className="border-b bg-muted/50 py-16 text-center">
         <div className="mx-auto max-w-3xl px-4">
-          <h1 className="text-4xl font-bold tracking-tight text-zinc-900">
+          <h1 className="text-4xl font-bold tracking-tight text-foreground">
             {tenant.name}
           </h1>
           {tenant.slogan && (
-            <p className="mt-3 text-lg text-zinc-600">{tenant.slogan}</p>
+            <p className="mt-3 text-lg text-muted-foreground">{tenant.slogan}</p>
           )}
           {!tenant.slogan && tenant.description && (
-            <p className="mt-3 text-lg text-zinc-600">{tenant.description}</p>
+            <p className="mt-3 text-lg text-muted-foreground">{tenant.description}</p>
           )}
           <div className="mt-6 flex items-center justify-center gap-4">
             <Link
@@ -65,13 +65,13 @@ export default async function StorefrontHomePage() {
       <section className="mx-auto max-w-6xl px-4 py-12">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-2xl font-semibold">Productos destacados</h2>
-          <Link href="/productos" className="text-sm text-zinc-500 hover:underline">
+          <Link href="/productos" className="text-sm text-muted-foreground hover:underline">
             Ver todos
           </Link>
         </div>
 
         {featuredProducts.length === 0 ? (
-          <div className="flex min-h-48 items-center justify-center rounded-xl border border-dashed text-zinc-400">
+          <div className="flex min-h-48 items-center justify-center rounded-xl border border-dashed text-muted-foreground/80">
             <p className="text-sm">Aún no hay productos disponibles.</p>
           </div>
         ) : (
@@ -92,10 +92,10 @@ export default async function StorefrontHomePage() {
 
       {/* Contacto rápido */}
       {(tenant.contactEmail || tenant.contactPhone || tenant.contactWhatsapp) && (
-        <section className="border-t bg-zinc-50 py-8">
+        <section className="border-t bg-muted/50 py-8">
           <div className="mx-auto max-w-6xl px-4 text-center">
-            <h3 className="text-sm font-semibold text-zinc-700">Contacto</h3>
-            <div className="mt-2 flex flex-wrap items-center justify-center gap-4 text-sm text-zinc-600">
+            <h3 className="text-sm font-semibold text-foreground/80">Contacto</h3>
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
               {tenant.contactEmail && (
                 <a href={`mailto:${tenant.contactEmail}`} className="hover:underline">
                   {tenant.contactEmail}
@@ -129,17 +129,17 @@ function LandingGenerico() {
     <div className="flex flex-col items-center justify-center gap-8 py-24 px-4 text-center">
       <div>
         <h1 className="text-4xl font-bold tracking-tight">FRC E-commerce Platform</h1>
-        <p className="mt-3 text-lg text-zinc-600">
+        <p className="mt-3 text-lg text-muted-foreground">
           Plataforma SaaS multi-tenant para tiendas online
         </p>
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-2 text-sm text-muted-foreground">
           Para acceder a una tienda, ingresá al subdominio de tu tienda
         </p>
       </div>
       <div className="flex gap-4">
         <Link
           href="/login"
-          className="rounded-md border px-5 py-2.5 text-sm font-medium hover:bg-zinc-50 transition-colors"
+          className="rounded-md border px-5 py-2.5 text-sm font-medium hover:bg-muted/50 transition-colors"
         >
           Ingresar
         </Link>
@@ -150,7 +150,7 @@ function LandingGenerico() {
           Crear tienda
         </Link>
       </div>
-      <div className="mt-4 text-xs text-zinc-400">
+      <div className="mt-4 text-xs text-muted-foreground/80">
         <a href="/api/health" className="hover:underline">Estado del servicio</a>
       </div>
     </div>

@@ -81,7 +81,7 @@ export default async function CarritoPage() {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
         <h1 className="mb-4 text-2xl font-bold">Tu carrito</h1>
-        <p className="mb-6 text-zinc-500">El carrito está vacío.</p>
+        <p className="mb-6 text-muted-foreground">El carrito está vacío.</p>
         <Button asChild>
           <Link href="/productos">Ver productos</Link>
         </Button>
@@ -99,7 +99,7 @@ export default async function CarritoPage() {
           {lines.map((line) => (
             <div key={line.id} className="flex gap-4 rounded-xl border p-4">
               {/* Imagen placeholder */}
-              <div className="h-20 w-20 shrink-0 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-300">
+              <div className="h-20 w-20 shrink-0 rounded-lg bg-muted flex items-center justify-center text-muted-foreground/60">
                 {line.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -136,7 +136,7 @@ export default async function CarritoPage() {
                   {line.productName}
                 </Link>
                 {line.variantName && (
-                  <p className="text-xs text-zinc-500">{line.variantName}</p>
+                  <p className="text-xs text-muted-foreground">{line.variantName}</p>
                 )}
                 <p className="text-sm font-semibold text-primary">
                   {formatMoney({ amount: line.unitPrice, currency: line.currency as CurrencyCode })}
@@ -167,7 +167,7 @@ export default async function CarritoPage() {
             <h2 className="font-semibold">Resumen del pedido</h2>
             <div className="space-y-2 text-sm">
               {lines.map((l) => (
-                <div key={l.id} className="flex justify-between text-zinc-600">
+                <div key={l.id} className="flex justify-between text-muted-foreground">
                   <span className="truncate max-w-[160px]">
                     {l.productName} × {l.qty}
                   </span>
@@ -189,7 +189,7 @@ export default async function CarritoPage() {
             </Button>
             <Link
               href="/productos"
-              className="block text-center text-xs text-zinc-500 hover:underline"
+              className="block text-center text-xs text-muted-foreground hover:underline"
             >
               Seguir comprando
             </Link>

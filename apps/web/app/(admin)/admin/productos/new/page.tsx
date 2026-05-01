@@ -16,7 +16,7 @@ export default async function NewProductPage() {
 
   return (
     <div className="max-w-2xl space-y-4">
-      <Link href="/admin/productos" className="text-sm text-zinc-500 hover:underline">
+      <Link href="/admin/productos" className="text-sm text-muted-foreground hover:underline">
         ← Volver a productos
       </Link>
       <ProductForm categories={categories} />

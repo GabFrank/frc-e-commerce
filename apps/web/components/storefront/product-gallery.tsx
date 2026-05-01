@@ -16,8 +16,8 @@ export function ProductGallery({
 
   if (images.length === 0) {
     return (
-      <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-zinc-100">
-        <div className="flex h-full items-center justify-center text-zinc-300">
+      <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-muted">
+        <div className="flex h-full items-center justify-center text-muted-foreground/60">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="96"
@@ -46,7 +46,7 @@ export function ProductGallery({
       <button
         type="button"
         onClick={() => setLightboxIndex(activeIndex)}
-        className="group relative block aspect-square w-full overflow-hidden rounded-xl bg-zinc-100"
+        className="group relative block aspect-square w-full overflow-hidden rounded-xl bg-muted"
         aria-label="Ampliar imagen"
       >
         <SafeImage

@@ -49,23 +49,23 @@ export default function RegisterPage() {
           <div className="space-y-1.5">
             <Label htmlFor="name">Nombre</Label>
             <Input id="name" autoComplete="name" {...register('name')} />
-            {errors.name && <p className="text-xs text-red-600">{errors.name.message}</p>}
+            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
             <Input id="email" type="email" autoComplete="email" {...register('email')} />
-            {errors.email && <p className="text-xs text-red-600">{errors.email.message}</p>}
+            {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="password">Contraseña</Label>
             <Input id="password" type="password" autoComplete="new-password" {...register('password')} />
-            {errors.password && <p className="text-xs text-red-600">{errors.password.message}</p>}
+            {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
           </div>
-          {serverError && <p className="text-sm text-red-600">{serverError}</p>}
+          {serverError && <p className="text-sm text-destructive">{serverError}</p>}
           <Button type="submit" disabled={isSubmitting} className="w-full">
             {isSubmitting ? 'Creando...' : 'Crear cuenta'}
           </Button>
-          <p className="text-center text-xs text-zinc-500">
+          <p className="text-center text-xs text-muted-foreground">
             ¿Ya tenés cuenta?{' '}
             <Link href="/login" className="underline">
               Ingresar

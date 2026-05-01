@@ -17,11 +17,11 @@ export default async function TenantsListPage() {
       </div>
 
       {tenants.length === 0 ? (
-        <p className="text-sm text-zinc-500">Aún no hay tiendas. Creá la primera.</p>
+        <p className="text-sm text-muted-foreground">Aún no hay tiendas. Creá la primera.</p>
       ) : (
         <div className="border rounded-md overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-zinc-50 text-zinc-600 text-left">
+            <thead className="bg-muted/50 text-muted-foreground text-left">
               <tr>
                 <th className="p-3">Nombre</th>
                 <th className="p-3">Slug</th>
@@ -32,7 +32,7 @@ export default async function TenantsListPage() {
             </thead>
             <tbody>
               {tenants.map((t) => (
-                <tr key={t.id} className="border-t hover:bg-zinc-50">
+                <tr key={t.id} className="border-t hover:bg-muted/50">
                   <td className="p-3 font-medium">
                     <Link href={`/super/tenants/${t.id}`} className="hover:underline">
                       {t.name}
@@ -41,7 +41,7 @@ export default async function TenantsListPage() {
                   <td className="p-3 font-mono text-xs">{t.slug}</td>
                   <td className="p-3 capitalize">{t.plan}</td>
                   <td className="p-3 capitalize">{t.status}</td>
-                  <td className="p-3 text-zinc-500">{new Date(t.createdAt).toLocaleDateString('es-PY')}</td>
+                  <td className="p-3 text-muted-foreground">{new Date(t.createdAt).toLocaleDateString('es-PY')}</td>
                 </tr>
               ))}
             </tbody>

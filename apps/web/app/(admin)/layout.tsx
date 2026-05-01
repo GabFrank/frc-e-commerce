@@ -35,45 +35,45 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/admin" className="font-semibold">
             {tenant.name}
           </Link>
-          <p className="mt-1 text-xs text-zinc-500">Admin</p>
+          <p className="mt-1 text-xs text-muted-foreground">Admin</p>
           <a
             href="/"
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+            className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
           >
             ↗ Ver tienda pública
           </a>
         </div>
         <nav className="flex flex-col gap-1 text-sm">
-          <Link href="/admin/productos" className="rounded px-2 py-1.5 hover:bg-zinc-100">
+          <Link href="/admin/productos" className="rounded px-2 py-1.5 hover:bg-muted">
             Productos
           </Link>
-          <Link href="/admin/pedidos" className="rounded px-2 py-1.5 hover:bg-zinc-100">
+          <Link href="/admin/pedidos" className="rounded px-2 py-1.5 hover:bg-muted">
             Pedidos
           </Link>
-          <Link href="/admin/configuracion" className="rounded px-2 py-1.5 hover:bg-zinc-100">
+          <Link href="/admin/configuracion" className="rounded px-2 py-1.5 hover:bg-muted">
             Configuración
           </Link>
         </nav>
         <div className="mt-auto pt-4 border-t text-xs space-y-2">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-zinc-500 truncate">{session.user.email}</p>
-              <p className="mt-1 text-zinc-400">Rol: {membership.role}</p>
+              <p className="text-muted-foreground truncate">{session.user.email}</p>
+              <p className="mt-1 text-muted-foreground/80">Rol: {membership.role}</p>
             </div>
             <ThemeToggle />
           </div>
           <Link
             href="/mis-tiendas"
-            className="block rounded px-2 py-1.5 text-zinc-600 hover:bg-zinc-100"
+            className="block rounded px-2 py-1.5 text-muted-foreground hover:bg-muted"
           >
             ← Mis tiendas
           </Link>
           {isSuperAdmin && (
             <Link
               href="/super"
-              className="block rounded px-2 py-1.5 text-zinc-600 hover:bg-zinc-100"
+              className="block rounded px-2 py-1.5 text-muted-foreground hover:bg-muted"
             >
               Panel super
             </Link>

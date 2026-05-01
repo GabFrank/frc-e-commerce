@@ -86,20 +86,20 @@ export function ManageTenantButton({
           onClick={() => !busy && setShowDialog(false)}
         >
           <div
-            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+            className="w-full max-w-md rounded-xl bg-card text-card-foreground p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-lg font-semibold">Sin acceso a esta tienda</h2>
-            <p className="mt-2 text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-muted-foreground">
               Tu cuenta <span className="font-medium">{currentUserEmail}</span> no es
               miembro de <span className="font-medium">{tenantName}</span>.
             </p>
-            <p className="mt-2 text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-muted-foreground">
               Como super admin, podés agregarte como <span className="font-medium">owner</span>{' '}
               de esta tienda, o cambiar a una cuenta que ya sea miembro.
             </p>
 
-            {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+            {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
 
             <div className="mt-5 flex flex-col gap-2">
               <Button onClick={handleSelfAssign} disabled={busy} className="w-full">

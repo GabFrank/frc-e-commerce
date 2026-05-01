@@ -49,7 +49,7 @@ export default async function ProductsPage() {
 
       {products.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed p-12 text-center">
-          <p className="text-zinc-500 text-sm mb-4">Aún no hay productos. Creá el primero.</p>
+          <p className="text-muted-foreground text-sm mb-4">Aún no hay productos. Creá el primero.</p>
           <Link href="/admin/productos/new">
             <Button variant="outline">+ Nuevo producto</Button>
           </Link>
@@ -57,7 +57,7 @@ export default async function ProductsPage() {
       ) : (
         <div className="border rounded-md overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-zinc-50 text-zinc-600 text-left">
+            <thead className="bg-muted/50 text-muted-foreground text-left">
               <tr>
                 <th className="px-3 py-2">Nombre</th>
                 <th className="px-3 py-2">SKU / Variantes</th>
@@ -71,20 +71,20 @@ export default async function ProductsPage() {
               {products.map((p) => {
                 const summary = summaryMap.get(p.id);
                 return (
-                  <tr key={p.id} className="border-t hover:bg-zinc-50 transition-colors">
+                  <tr key={p.id} className="border-t hover:bg-muted/50 transition-colors">
                     <td className="px-3 py-2 font-medium">{p.name}</td>
-                    <td className="px-3 py-2 text-zinc-500">
+                    <td className="px-3 py-2 text-muted-foreground">
                       {summary ? (
                         <span>
                           <span className="font-mono text-xs">{summary.firstSku}</span>
                           {summary.variantCount > 1 && (
-                            <span className="ml-1 text-xs text-zinc-400">
+                            <span className="ml-1 text-xs text-muted-foreground/80">
                               +{summary.variantCount - 1} más
                             </span>
                           )}
                         </span>
                       ) : (
-                        <span className="text-xs text-zinc-400">Sin variantes</span>
+                        <span className="text-xs text-muted-foreground/80">Sin variantes</span>
                       )}
                     </td>
                     <td className="px-3 py-2">
@@ -92,7 +92,7 @@ export default async function ProductsPage() {
                     </td>
                     <td className="px-3 py-2">
                       {p.basePrice.toLocaleString('es-PY')}{' '}
-                      <span className="text-xs text-zinc-400">{p.currency}</span>
+                      <span className="text-xs text-muted-foreground/80">{p.currency}</span>
                     </td>
                     <td className="px-3 py-2">
                       <ProductStatusBadge status={p.status} />
@@ -100,7 +100,7 @@ export default async function ProductsPage() {
                     <td className="px-3 py-2">
                       <Link
                         href={`/admin/productos/${p.id}`}
-                        className="text-blue-600 hover:underline text-xs"
+                        className="text-primary hover:underline text-xs"
                       >
                         Editar
                       </Link>

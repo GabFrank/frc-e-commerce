@@ -31,7 +31,7 @@ export function EnterTenantButton({
       <Button onClick={handleClick} disabled={busy}>
         {busy ? 'Entrando…' : `Entrar a ${tenantName}`}
       </Button>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }

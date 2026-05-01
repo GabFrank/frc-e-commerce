@@ -16,7 +16,7 @@ export default async function CuentaPage() {
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center">
         <h1 className="mb-4 text-2xl font-bold">Mi cuenta</h1>
-        <p className="mb-6 text-zinc-500">Iniciá sesión para ver tu cuenta y pedidos.</p>
+        <p className="mb-6 text-muted-foreground">Iniciá sesión para ver tu cuenta y pedidos.</p>
         <div className="flex items-center justify-center gap-3">
           <Button asChild>
             <Link href="/login">Ingresar</Link>
@@ -44,11 +44,11 @@ export default async function CuentaPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center gap-2 text-sm">
-              <span className="font-medium text-zinc-500 w-20">Nombre</span>
+              <span className="font-medium text-muted-foreground w-20">Nombre</span>
               <span>{user.name}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <span className="font-medium text-zinc-500 w-20">Email</span>
+              <span className="font-medium text-muted-foreground w-20">Email</span>
               <span>{user.email}</span>
             </div>
           </CardContent>

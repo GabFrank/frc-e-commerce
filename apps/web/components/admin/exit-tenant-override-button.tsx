@@ -20,7 +20,7 @@ export function ExitTenantOverrideButton() {
       type="button"
       onClick={handleClick}
       disabled={busy}
-      className="block w-full rounded px-2 py-1.5 text-left text-amber-700 hover:bg-amber-50"
+      className="block w-full rounded px-2 py-1.5 text-left text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40"
     >
       {busy ? 'Saliendo…' : '⤴ Salir de modo tienda'}
     </button>

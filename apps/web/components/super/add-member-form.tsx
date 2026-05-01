@@ -102,16 +102,16 @@ export function AddMemberForm({ tenantId }: { tenantId: string }) {
             required
           />
           {showSuggestions && suggestions.length > 0 && (
-            <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-md border bg-white shadow-lg">
+            <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-lg">
               {suggestions.map((u) => (
                 <li key={u.id}>
                   <button
                     type="button"
                     onClick={() => handleSelectSuggestion(u)}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-100"
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
                   >
                     <span className="font-medium">{u.email}</span>
-                    <span className="ml-2 text-xs text-zinc-500">{u.name}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">{u.name}</span>
                   </button>
                 </li>
               ))}
@@ -143,19 +143,19 @@ export function AddMemberForm({ tenantId }: { tenantId: string }) {
 
       {/* Status hints */}
       {highlighted && (
-        <p className="text-xs text-green-700">
+        <p className="text-xs text-emerald-700 dark:text-emerald-300">
           ✓ Usuario encontrado: <span className="font-medium">{highlighted.name}</span>
         </p>
       )}
       {isUnregistered && !message && (
-        <p className="text-xs text-amber-700">
+        <p className="text-xs text-amber-700 dark:text-amber-300">
           ⓘ No hay usuario con ese email. Pediles que se registren en{' '}
-          <code className="bg-zinc-100 px-1 rounded">/register</code> o invitalos por email
+          <code className="bg-muted px-1 rounded">/register</code> o invitalos por email
           (envío automático llegará en próxima fase).
         </p>
       )}
       {message && (
-        <p className={`text-xs ${status === 'success' ? 'text-green-700' : 'text-red-600'}`}>
+        <p className={`text-xs ${status === 'success' ? 'text-emerald-700 dark:text-emerald-300' : 'text-destructive'}`}>
           {message}
         </p>
       )}

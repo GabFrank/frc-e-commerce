@@ -83,12 +83,12 @@ export default async function PedidoDetailPage({ params }: PageProps) {
         <div>
           <Link
             href="/admin/pedidos"
-            className="mb-2 inline-block text-sm text-zinc-500 hover:underline"
+            className="mb-2 inline-block text-sm text-muted-foreground hover:underline"
           >
             Pedidos
           </Link>
           <h1 className="font-mono text-2xl font-semibold">{o.orderNumber}</h1>
-          <p className="mt-1 text-sm text-zinc-500">{formattedDate}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{formattedDate}</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={orderBadge.variant}>{orderBadge.label}</Badge>
@@ -103,10 +103,10 @@ export default async function PedidoDetailPage({ params }: PageProps) {
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
             <p className="font-medium">{o.customerName}</p>
-            <p className="text-zinc-600">{o.customerEmail}</p>
-            {o.customerPhone && <p className="text-zinc-600">{o.customerPhone}</p>}
+            <p className="text-muted-foreground">{o.customerEmail}</p>
+            {o.customerPhone && <p className="text-muted-foreground">{o.customerPhone}</p>}
             {o.notes && (
-              <p className="mt-2 rounded bg-zinc-50 p-2 text-zinc-700 text-xs">
+              <p className="mt-2 rounded bg-muted/50 p-2 text-foreground/80 text-xs">
                 Nota: {o.notes}
               </p>
             )}
@@ -118,7 +118,7 @@ export default async function PedidoDetailPage({ params }: PageProps) {
           <CardHeader>
             <CardTitle className="text-base">Dirección de envío</CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-zinc-600">
+          <CardContent className="text-sm text-muted-foreground">
             {shippingAddress ? (
               <div className="space-y-0.5">
                 {shippingAddress.street && <p>{shippingAddress.street}</p>}
@@ -127,11 +127,11 @@ export default async function PedidoDetailPage({ params }: PageProps) {
                 {shippingAddress.postalCode && <p>CP: {shippingAddress.postalCode}</p>}
                 {shippingAddress.country && <p>{shippingAddress.country}</p>}
                 {shippingAddress.additionalInfo && (
-                  <p className="text-zinc-400">{shippingAddress.additionalInfo}</p>
+                  <p className="text-muted-foreground/80">{shippingAddress.additionalInfo}</p>
                 )}
               </div>
             ) : (
-              <p className="text-zinc-400">Sin información de dirección</p>
+              <p className="text-muted-foreground/80">Sin información de dirección</p>
             )}
           </CardContent>
         </Card>
@@ -153,7 +153,7 @@ export default async function PedidoDetailPage({ params }: PageProps) {
             <TableBody>
               {lines.map((line) => (
                 <TableRow key={line.id}>
-                  <TableCell className="font-mono text-xs text-zinc-500">{line.variantId}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">{line.variantId}</TableCell>
                   <TableCell className="text-right">
                     {formatMoney({ amount: line.unitPrice, currency })}
                   </TableCell>
@@ -171,18 +171,18 @@ export default async function PedidoDetailPage({ params }: PageProps) {
         <div className="mt-3 flex justify-end">
           <div className="w-64 space-y-1 text-sm">
             <div className="flex justify-between">
-              <span className="text-zinc-500">Subtotal</span>
+              <span className="text-muted-foreground">Subtotal</span>
               <span>{formatMoney({ amount: o.subtotal, currency })}</span>
             </div>
             {o.shippingCost > 0 && (
               <div className="flex justify-between">
-                <span className="text-zinc-500">Envío</span>
+                <span className="text-muted-foreground">Envío</span>
                 <span>{formatMoney({ amount: o.shippingCost, currency })}</span>
               </div>
             )}
             {o.tax > 0 && (
               <div className="flex justify-between">
-                <span className="text-zinc-500">IVA</span>
+                <span className="text-muted-foreground">IVA</span>
                 <span>{formatMoney({ amount: o.tax, currency })}</span>
               </div>
             )}
@@ -203,18 +203,18 @@ export default async function PedidoDetailPage({ params }: PageProps) {
               <div className="flex items-center justify-between text-sm">
                 <div className="space-y-1">
                   <p>
-                    <span className="text-zinc-500">Método: </span>
+                    <span className="text-muted-foreground">Método: </span>
                     <span className="font-medium capitalize">{primaryPayment.method}</span>
                   </p>
                   <p>
-                    <span className="text-zinc-500">Monto: </span>
+                    <span className="text-muted-foreground">Monto: </span>
                     <span className="font-medium">
                       {formatMoney({ amount: primaryPayment.amount, currency })}
                     </span>
                   </p>
                   {primaryPayment.externalId && (
                     <p>
-                      <span className="text-zinc-500">ID externo: </span>
+                      <span className="text-muted-foreground">ID externo: </span>
                       <span className="font-mono text-xs">{primaryPayment.externalId}</span>
                     </p>
                   )}

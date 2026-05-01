@@ -74,7 +74,7 @@ export function VariantSelector({ variants, onVariantChange }: VariantSelectorPr
               type="button"
               onClick={() => handleQtyChange(qty - 1)}
               disabled={qty <= 1}
-              className="flex h-8 w-8 items-center justify-center rounded border text-sm disabled:opacity-40 hover:bg-zinc-50 transition-colors"
+              className="flex h-8 w-8 items-center justify-center rounded border text-sm disabled:opacity-40 hover:bg-muted/50 transition-colors"
               aria-label="Disminuir cantidad"
             >
               -
@@ -84,12 +84,12 @@ export function VariantSelector({ variants, onVariantChange }: VariantSelectorPr
               type="button"
               onClick={() => handleQtyChange(qty + 1)}
               disabled={qty >= maxStock}
-              className="flex h-8 w-8 items-center justify-center rounded border text-sm disabled:opacity-40 hover:bg-zinc-50 transition-colors"
+              className="flex h-8 w-8 items-center justify-center rounded border text-sm disabled:opacity-40 hover:bg-muted/50 transition-colors"
               aria-label="Aumentar cantidad"
             >
               +
             </button>
-            <span className="ml-2 text-xs text-zinc-500">
+            <span className="ml-2 text-xs text-muted-foreground">
               {maxStock > 0 ? `${maxStock} disponibles` : 'Sin stock'}
             </span>
           </div>

@@ -89,7 +89,7 @@ export function VariantForm({ productId, variants: initialVariants }: VariantFor
         {variants.length > 0 ? (
           <div className="border rounded-md overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-zinc-50 text-zinc-600 text-left">
+              <thead className="bg-muted/50 text-muted-foreground text-left">
                 <tr>
                   <th className="px-3 py-2">SKU</th>
                   <th className="px-3 py-2">Nombre</th>
@@ -116,7 +116,7 @@ export function VariantForm({ productId, variants: initialVariants }: VariantFor
             </table>
           </div>
         ) : (
-          <p className="text-sm text-zinc-500">Aún no hay variantes.</p>
+          <p className="text-sm text-muted-foreground">Aún no hay variantes.</p>
         )}
 
         {/* New variant form */}
@@ -126,12 +126,12 @@ export function VariantForm({ productId, variants: initialVariants }: VariantFor
               <div className="space-y-1.5">
                 <Label htmlFor="sku">SKU</Label>
                 <Input id="sku" {...register('sku')} />
-                {errors.sku && <p className="text-xs text-red-600">{errors.sku.message}</p>}
+                {errors.sku && <p className="text-xs text-destructive">{errors.sku.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="variantName">Nombre de variante</Label>
                 <Input id="variantName" {...register('name')} />
-                {errors.name && <p className="text-xs text-red-600">{errors.name.message}</p>}
+                {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
               </div>
             </div>
 
@@ -144,7 +144,7 @@ export function VariantForm({ productId, variants: initialVariants }: VariantFor
                   min={0}
                   {...register('price', { valueAsNumber: true })}
                 />
-                {errors.price && <p className="text-xs text-red-600">{errors.price.message}</p>}
+                {errors.price && <p className="text-xs text-destructive">{errors.price.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="compareAtPrice">Precio comparación</Label>
@@ -178,7 +178,7 @@ export function VariantForm({ productId, variants: initialVariants }: VariantFor
               </Label>
             </div>
 
-            {serverError && <p className="text-sm text-red-600">{serverError}</p>}
+            {serverError && <p className="text-sm text-destructive">{serverError}</p>}
 
             <Button type="submit" disabled={isSubmitting} size="sm">
               {isSubmitting ? 'Guardando...' : 'Guardar variante'}

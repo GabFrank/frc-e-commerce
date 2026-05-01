@@ -73,7 +73,7 @@ export function CheckoutForm({ tenantName }: CheckoutFormProps) {
               autoComplete="name"
             />
             {errors.customerName && (
-              <p className="text-xs text-red-600">{errors.customerName.message}</p>
+              <p className="text-xs text-destructive">{errors.customerName.message}</p>
             )}
           </div>
 
@@ -87,7 +87,7 @@ export function CheckoutForm({ tenantName }: CheckoutFormProps) {
               autoComplete="email"
             />
             {errors.customerEmail && (
-              <p className="text-xs text-red-600">{errors.customerEmail.message}</p>
+              <p className="text-xs text-destructive">{errors.customerEmail.message}</p>
             )}
           </div>
 
@@ -118,7 +118,7 @@ export function CheckoutForm({ tenantName }: CheckoutFormProps) {
               autoComplete="street-address"
             />
             {errors.shippingAddress?.street && (
-              <p className="text-xs text-red-600">{errors.shippingAddress.street.message}</p>
+              <p className="text-xs text-destructive">{errors.shippingAddress.street.message}</p>
             )}
           </div>
 
@@ -132,7 +132,7 @@ export function CheckoutForm({ tenantName }: CheckoutFormProps) {
                 autoComplete="address-level2"
               />
               {errors.shippingAddress?.city && (
-                <p className="text-xs text-red-600">{errors.shippingAddress.city.message}</p>
+                <p className="text-xs text-destructive">{errors.shippingAddress.city.message}</p>
               )}
             </div>
 
@@ -163,7 +163,7 @@ export function CheckoutForm({ tenantName }: CheckoutFormProps) {
                 {...register('shippingAddress.country')}
                 defaultValue="PY"
                 readOnly
-                className="bg-zinc-50 cursor-default"
+                className="bg-muted/50 cursor-default"
               />
             </div>
           </div>
@@ -178,7 +178,7 @@ export function CheckoutForm({ tenantName }: CheckoutFormProps) {
           {PAYMENT_METHODS.map(({ value, label }) => (
             <label
               key={value}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border p-4 hover:bg-zinc-50 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+              className="flex cursor-pointer items-center gap-3 rounded-lg border p-4 hover:bg-muted/50 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5"
             >
               <input
                 type="radio"
@@ -190,32 +190,32 @@ export function CheckoutForm({ tenantName }: CheckoutFormProps) {
             </label>
           ))}
           {errors.paymentMethod && (
-            <p className="text-xs text-red-600">{errors.paymentMethod.message}</p>
+            <p className="text-xs text-destructive">{errors.paymentMethod.message}</p>
           )}
         </div>
 
         {/* Instrucciones según método */}
         {paymentMethod === 'transferencia' && (
-          <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-700">
+          <div className="rounded-lg bg-primary/10 p-4 text-sm text-primary">
             <p className="font-medium">Instrucciones de transferencia</p>
-            <p className="mt-1 text-blue-600">
+            <p className="mt-1 text-primary">
               Una vez confirmado el pedido, recibirás los datos bancarios por email para
               realizar la transferencia.
             </p>
           </div>
         )}
         {paymentMethod === 'contraentrega' && (
-          <div className="rounded-lg bg-green-50 p-4 text-sm text-green-700">
+          <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 p-4 text-sm text-emerald-700 dark:text-emerald-300">
             <p className="font-medium">Pago al recibir</p>
-            <p className="mt-1 text-green-600">
+            <p className="mt-1 text-emerald-600 dark:text-emerald-400">
               Pagás en efectivo o con tarjeta al momento de recibir tu pedido.
             </p>
           </div>
         )}
         {paymentMethod === 'efectivo' && (
-          <div className="rounded-lg bg-amber-50 p-4 text-sm text-amber-700">
+          <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 p-4 text-sm text-amber-700 dark:text-amber-300">
             <p className="font-medium">Pago en efectivo</p>
-            <p className="mt-1 text-amber-600">
+            <p className="mt-1 text-amber-600 dark:text-amber-400">
               Podés abonar en nuestros locales o coordinar el pago con nuestro equipo.
             </p>
           </div>
@@ -235,14 +235,14 @@ export function CheckoutForm({ tenantName }: CheckoutFormProps) {
       </div>
 
       {serverError && (
-        <p className="rounded-md bg-red-50 p-3 text-sm text-red-600">{serverError}</p>
+        <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{serverError}</p>
       )}
 
       <Button type="submit" disabled={isSubmitting} size="lg" className="w-full sm:w-auto">
         {isSubmitting ? 'Procesando pedido...' : 'Confirmar pedido'}
       </Button>
 
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-muted-foreground">
         Al confirmar aceptás los términos y condiciones de {tenantName}.
       </p>
     </form>

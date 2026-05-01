@@ -39,7 +39,7 @@ export function CartLineControls({ lineId, initialQty, maxStock = 99 }: CartLine
         type="button"
         onClick={() => handleUpdate(qty - 1)}
         disabled={loading || qty <= 1}
-        className="flex h-7 w-7 items-center justify-center rounded border text-sm disabled:opacity-40 hover:bg-zinc-50 transition-colors"
+        className="flex h-7 w-7 items-center justify-center rounded border text-sm disabled:opacity-40 hover:bg-muted/50 transition-colors"
         aria-label="Disminuir cantidad"
       >
         -
@@ -49,7 +49,7 @@ export function CartLineControls({ lineId, initialQty, maxStock = 99 }: CartLine
         type="button"
         onClick={() => handleUpdate(qty + 1)}
         disabled={loading || qty >= maxStock}
-        className="flex h-7 w-7 items-center justify-center rounded border text-sm disabled:opacity-40 hover:bg-zinc-50 transition-colors"
+        className="flex h-7 w-7 items-center justify-center rounded border text-sm disabled:opacity-40 hover:bg-muted/50 transition-colors"
         aria-label="Aumentar cantidad"
       >
         +
@@ -58,7 +58,7 @@ export function CartLineControls({ lineId, initialQty, maxStock = 99 }: CartLine
         type="button"
         onClick={handleRemove}
         disabled={loading}
-        className="ml-2 text-xs text-red-500 hover:underline disabled:opacity-40"
+        className="ml-2 text-xs text-destructive hover:underline disabled:opacity-40"
         aria-label="Eliminar"
       >
         Eliminar

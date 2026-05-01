@@ -40,7 +40,7 @@ export default async function MisTiendasPage() {
       <div className="flex items-baseline justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Mis tiendas</h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-muted-foreground">
             Hola <span className="font-medium">{session.user.name}</span> — elegí qué tienda
             querés administrar.
           </p>
@@ -57,7 +57,7 @@ export default async function MisTiendasPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Link href="/" className="text-sm text-blue-600 underline">
+            <Link href="/" className="text-sm text-primary underline">
               Ir al sitio público
             </Link>
           </CardContent>
@@ -69,13 +69,13 @@ export default async function MisTiendasPage() {
               <CardContent className="flex items-center justify-between p-5">
                 <div>
                   <h2 className="font-semibold">{m.tenantName}</h2>
-                  <p className="text-xs text-zinc-500 font-mono">
+                  <p className="text-xs text-muted-foreground font-mono">
                     {m.tenantSlug}.frc-ecommerce.com
                   </p>
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     Rol: <span className="capitalize font-medium">{m.role}</span>
                     {m.tenantStatus !== 'active' && (
-                      <span className="ml-2 text-amber-600">({m.tenantStatus})</span>
+                      <span className="ml-2 text-amber-600 dark:text-amber-400">({m.tenantStatus})</span>
                     )}
                   </p>
                 </div>

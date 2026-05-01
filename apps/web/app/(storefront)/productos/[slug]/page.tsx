@@ -80,12 +80,12 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       {/* Breadcrumb */}
-      <nav className="mb-6 flex items-center gap-2 text-xs text-zinc-500">
+      <nav className="mb-6 flex items-center gap-2 text-xs text-muted-foreground">
         <Link href="/" className="hover:underline">Inicio</Link>
         <span>/</span>
         <Link href="/productos" className="hover:underline">Productos</Link>
         <span>/</span>
-        <span className="text-zinc-800">{productData.name}</span>
+        <span className="text-foreground">{productData.name}</span>
       </nav>
 
       <div className="grid gap-8 lg:grid-cols-2">
@@ -97,7 +97,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
           <h1 className="text-2xl font-bold">{productData.name}</h1>
 
           {productData.description && (
-            <p className="text-sm leading-relaxed text-zinc-600">{productData.description}</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">{productData.description}</p>
           )}
 
           <ProductPurchasePanel
@@ -110,7 +110,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
           <div className="pt-2">
             <Link
               href="/carrito"
-              className="text-sm text-zinc-500 hover:underline"
+              className="text-sm text-muted-foreground hover:underline"
             >
               Ver carrito
             </Link>

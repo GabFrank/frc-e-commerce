@@ -30,7 +30,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
       </header>
       <main className="flex-1">{children}</main>
       <footer className="border-t">
-        <div className="mx-auto max-w-6xl p-4 text-xs text-zinc-500">
+        <div className="mx-auto max-w-6xl p-4 text-xs text-muted-foreground">
           {tenant ? `© ${tenant.name}` : '© FRC E-commerce'} — Powered by FRC
         </div>
       </footer>

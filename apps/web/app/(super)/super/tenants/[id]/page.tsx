@@ -42,14 +42,14 @@ export default async function TenantDetailPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <Link href="/super/tenants" className="text-sm text-zinc-500 hover:underline">
+      <Link href="/super/tenants" className="text-sm text-muted-foreground hover:underline">
         ← Volver a tiendas
       </Link>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-baseline sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{t.name}</h1>
-          <p className="text-sm text-zinc-500 font-mono">{t.slug}.frc-ecommerce.com</p>
+          <p className="text-sm text-muted-foreground font-mono">{t.slug}.frc-ecommerce.com</p>
         </div>
         <ManageTenantButton
           tenantId={t.id}
@@ -65,15 +65,15 @@ export default async function TenantDetailPage({ params }: PageProps) {
         </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-[140px_1fr] gap-y-2 text-sm">
-            <dt className="text-zinc-500">Plan</dt>
+            <dt className="text-muted-foreground">Plan</dt>
             <dd className="capitalize">{t.plan}</dd>
-            <dt className="text-zinc-500">Estado</dt>
+            <dt className="text-muted-foreground">Estado</dt>
             <dd className="capitalize">{t.status}</dd>
-            <dt className="text-zinc-500">Moneda</dt>
+            <dt className="text-muted-foreground">Moneda</dt>
             <dd>{t.defaultCurrency}</dd>
-            <dt className="text-zinc-500">Creada</dt>
+            <dt className="text-muted-foreground">Creada</dt>
             <dd>{new Date(t.createdAt).toLocaleDateString('es-PY')}</dd>
-            <dt className="text-zinc-500">Onboarding</dt>
+            <dt className="text-muted-foreground">Onboarding</dt>
             <dd>{t.onboardingCompleted ? '✓ Completado' : `Paso ${t.onboardingStep}`}</dd>
           </dl>
         </CardContent>
@@ -88,11 +88,11 @@ export default async function TenantDetailPage({ params }: PageProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           {memberships.length === 0 ? (
-            <p className="text-sm text-zinc-500">Aún no hay miembros.</p>
+            <p className="text-sm text-muted-foreground">Aún no hay miembros.</p>
           ) : (
             <div className="border rounded-md overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-zinc-50 text-left text-zinc-600">
+                <thead className="bg-muted/50 text-left text-muted-foreground">
                   <tr>
                     <th className="p-2.5">Usuario</th>
                     <th className="p-2.5">Email</th>
@@ -104,7 +104,7 @@ export default async function TenantDetailPage({ params }: PageProps) {
                   {memberships.map((m) => (
                     <tr key={m.id} className="border-t">
                       <td className="p-2.5 font-medium">{m.userName}</td>
-                      <td className="p-2.5 text-zinc-600">{m.userEmail}</td>
+                      <td className="p-2.5 text-muted-foreground">{m.userEmail}</td>
                       <td className="p-2.5 capitalize">{m.role}</td>
                       <td className="p-2.5 text-right">
                         <RemoveMemberButton tenantId={t.id} membershipId={m.id} />
