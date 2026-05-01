@@ -10,8 +10,12 @@ import {
   tenantCurrency,
   currency,
   exchangeRate,
+  cashSession,
+  cashSessionBalance,
 } from '@frc-e-commerce/db/schema';
 import { PosShell, type PosTenantContext } from '@/components/pos/PosShell';
+
+export const dynamic = 'force-dynamic';
 
 export default async function PosPage() {
   const tenant = await getCurrentTenant();
@@ -39,7 +43,7 @@ export default async function PosPage() {
     cfg = created!;
   }
 
-  // Cargar monedas configuradas para el tenant + rates vigentes
+  // Monedas configuradas activas
   const tcs = await db
     .select({
       currencyCode: tenantCurrency.currencyCode,
@@ -58,7 +62,6 @@ export default async function PosPage() {
       currencyCode: exchangeRate.currencyCode,
       buyRate: exchangeRate.buyRate,
       sellRate: exchangeRate.sellRate,
-      effectiveFrom: exchangeRate.effectiveFrom,
     })
     .from(exchangeRate)
     .where(eq(exchangeRate.tenantId, tenant.id))
@@ -101,15 +104,49 @@ export default async function PosPage() {
     canEditPrice: hasCapability(membership.role, 'product.write'),
   };
 
+  // Sesión activa del cashier
+  const [active] = await db
+    .select()
+    .from(cashSession)
+    .where(
+      and(
+        eq(cashSession.tenantId, tenant.id),
+        eq(cashSession.cashierId, session.user.id),
+        eq(cashSession.status, 'open')
+      )
+    )
+    .limit(1);
+  let openCurrencies: string[] = [];
+  if (active) {
+    const balances = await db
+      .select({ currencyCode: cashSessionBalance.currencyCode })
+      .from(cashSessionBalance)
+      .where(eq(cashSessionBalance.cashSessionId, active.id));
+    openCurrencies = balances.map((b) => b.currencyCode);
+  }
+
   return (
     <>
-      <PosHeader ctx={ctx} />
-      <PosShell ctx={ctx} />
+      <PosHeader ctx={ctx} session={active} />
+      <PosShell
+        ctx={ctx}
+        activeSession={
+          active
+            ? { id: active.id, openedAt: active.openedAt, openCurrencies }
+            : null
+        }
+      />
     </>
   );
 }
 
-function PosHeader({ ctx }: { ctx: PosTenantContext }) {
+function PosHeader({
+  ctx,
+  session,
+}: {
+  ctx: PosTenantContext;
+  session: { openedAt: Date } | null;
+}) {
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b bg-card px-4 text-sm">
       <div className="flex items-center gap-4">
@@ -117,9 +154,15 @@ function PosHeader({ ctx }: { ctx: PosTenantContext }) {
         <span className="text-muted-foreground">
           Cajero: <strong className="text-foreground">{ctx.cashierName}</strong> ({ctx.role})
         </span>
-        <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-          Sesión de caja: <span className="text-amber-600">no abierta (M4)</span>
-        </span>
+        {session ? (
+          <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-900">
+            Caja abierta {new Date(session.openedAt).toLocaleString('es-PY')}
+          </span>
+        ) : (
+          <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">
+            Sin caja abierta
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-3 text-xs">
         <Link href="/admin" className="text-muted-foreground hover:underline">

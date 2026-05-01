@@ -87,6 +87,21 @@ export default async function ConfiguracionPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>POS</CardTitle>
+          <CardDescription>Personalizá el comportamiento del punto de venta para esta tienda</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <a
+            href="/admin/configuracion/pos"
+            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            Configurar POS →
+          </a>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Métodos de pago</CardTitle>
           <CardDescription>Configuración de medios habilitados (próximamente editable)</CardDescription>
         </CardHeader>

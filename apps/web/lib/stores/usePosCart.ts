@@ -39,6 +39,7 @@ export type PosCustomerSnapshot = {
   name: string;
   document: string | null;
   phone: string | null;
+  email: string | null;
 };
 
 export type PosCartState = {
@@ -75,6 +76,7 @@ const DEFAULT_CUSTOMER: PosCustomerSnapshot = {
   name: 'Consumidor Final',
   document: null,
   phone: null,
+  email: null,
 };
 
 const initial = {

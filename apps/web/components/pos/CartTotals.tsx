@@ -12,9 +12,11 @@ type Props = {
   };
   ctx: PosTenantContext;
   customCurrency: string | null;
+  canCheckout: boolean;
+  onCheckout: () => void;
 };
 
-export function CartTotals({ totals, ctx, customCurrency }: Props) {
+export function CartTotals({ totals, ctx, customCurrency, canCheckout, onCheckout }: Props) {
   const primary = customCurrency ?? ctx.primaryCurrency;
   const primaryCfg = ctx.currencies.find((c) => c.code === primary);
 
@@ -80,11 +82,14 @@ export function CartTotals({ totals, ctx, customCurrency }: Props) {
       <Button
         size="lg"
         className="mt-3 w-full"
-        disabled
-        title="Disponible en M4 con caja abierta"
+        disabled={!canCheckout || totals.total === 0}
+        onClick={onCheckout}
       >
-        Cobrar (F12) — M4
+        Cobrar (F12)
       </Button>
+      {!canCheckout && (
+        <p className="mt-1 text-center text-xs text-amber-700">Abrí caja para cobrar</p>
+      )}
     </div>
   );
 }

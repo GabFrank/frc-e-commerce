@@ -10,6 +10,9 @@ import { VariantDialog } from './VariantDialog';
 import { LineDetailDialog } from './LineDetailDialog';
 import { PosCart } from './PosCart';
 import { CartTotals } from './CartTotals';
+import { OpenSessionDialog } from './cash/OpenSessionDialog';
+import { CloseSessionDialog } from './cash/CloseSessionDialog';
+import { CheckoutDialog } from './checkout/CheckoutDialog';
 import type { PosVariantOption } from '@/lib/actions/pos-search';
 
 export type PosCurrencyContext = {
@@ -44,13 +47,27 @@ export type PosTenantContext = {
   canEditPrice: boolean;
 };
 
-export function PosShell({ ctx }: { ctx: PosTenantContext }) {
+export type ActiveSessionInfo = {
+  id: string;
+  openedAt: Date;
+  openCurrencies: string[];
+};
+
+export function PosShell({
+  ctx,
+  activeSession,
+}: {
+  ctx: PosTenantContext;
+  activeSession: ActiveSessionInfo | null;
+}) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [variantDialog, setVariantDialog] = useState<{
     productId: string;
     productName: string;
   } | null>(null);
   const [lineDialog, setLineDialog] = useState<PosVariantOption | null>(null);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [closeOpen, setCloseOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const cart = usePosCart();
   const totals = calcTotal({
@@ -67,15 +84,23 @@ export function PosShell({ ctx }: { ctx: PosTenantContext }) {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
+      if (e.key === 'F9') {
+        e.preventDefault();
+        if (activeSession) setCloseOpen(true);
+      }
       if (e.key === 'F12') {
         e.preventDefault();
-        // TODO M4: abrir checkout
-        alert('F12 (cobrar) — disponible en M4');
+        if (cart.lines.length === 0) return;
+        if (!activeSession) {
+          alert('Necesitás abrir caja antes de cobrar');
+          return;
+        }
+        setCheckoutOpen(true);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [activeSession, cart.lines.length]);
 
   const onPickProduct = (productId: string, productName: string, single: PosVariantOption | null) => {
     setSearchOpen(false);
@@ -192,6 +217,8 @@ export function PosShell({ ctx }: { ctx: PosTenantContext }) {
           totals={totals}
           ctx={ctx}
           customCurrency={cart.primaryCurrencyOverride}
+          canCheckout={!!activeSession}
+          onCheckout={() => setCheckoutOpen(true)}
         />
       </aside>
 
@@ -215,6 +242,21 @@ export function PosShell({ ctx }: { ctx: PosTenantContext }) {
           variant={lineDialog}
           ctx={ctx}
           onClose={() => setLineDialog(null)}
+        />
+      )}
+      {!activeSession && (
+        <OpenSessionDialog ctx={ctx} onSuccess={() => setCheckoutOpen(false)} />
+      )}
+      {activeSession && checkoutOpen && (
+        <CheckoutDialog open ctx={ctx} onClose={() => setCheckoutOpen(false)} />
+      )}
+      {activeSession && (
+        <CloseSessionDialog
+          open={closeOpen}
+          cashSessionId={activeSession.id}
+          openCurrencies={activeSession.openCurrencies}
+          ctx={ctx}
+          onClose={() => setCloseOpen(false)}
         />
       )}
     </div>

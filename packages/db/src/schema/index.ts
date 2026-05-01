@@ -7,3 +7,5 @@ export * from './customer';
 export * from './order';
 export * from './currency';
 export * from './pos-config';
+export * from './cash';
+export * from './inventory';
