@@ -4,3 +4,4 @@ export * from './tenant-member';
 export * from './product';
 export * from './cart';
 export * from './order';
+export * from './currency';

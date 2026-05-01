@@ -72,6 +72,21 @@ export default async function ConfiguracionPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Monedas y cotizaciones</CardTitle>
+          <CardDescription>Activá las monedas que vas a usar y mantené las cotizaciones actualizadas</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <a
+            href="/admin/configuracion/monedas"
+            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            Configurar monedas →
+          </a>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Métodos de pago</CardTitle>
           <CardDescription>Configuración de medios habilitados (próximamente editable)</CardDescription>
         </CardHeader>
@@ -80,7 +95,7 @@ export default async function ConfiguracionPage() {
             <li>✓ Transferencia bancaria (manual)</li>
             <li>✓ Pago contra entrega (manual)</li>
             <li>✓ Efectivo (POS)</li>
-            <li className="text-muted-foreground/80">⏳ Stripe (post-MVP, requiere SDK)</li>
+            <li className="text-muted-foreground/80">⏳ Stripe (Fase 2)</li>
             <li className="text-muted-foreground/80">⏳ Bancard (post-MVP)</li>
           </ul>
         </CardContent>
