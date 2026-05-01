@@ -115,6 +115,13 @@ export const productImage = pgTable(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenant.id, { onDelete: 'cascade' }),
+    /**
+     * Optional variant the image belongs to. NULL = default product image,
+     * shown when no variant-specific images exist for the active selection.
+     */
+    variantId: uuid('variant_id').references(() => productVariant.id, {
+      onDelete: 'set null',
+    }),
     /** Object key in the R2 bucket */
     r2Key: text('r2_key').notNull(),
     url: text('url').notNull(),
@@ -123,6 +130,7 @@ export const productImage = pgTable(
   },
   (t) => ({
     tenantIdx: index('idx_product_image_tenant_id').on(t.tenantId),
+    variantIdx: index('idx_product_image_variant_id').on(t.variantId),
   })
 );
 

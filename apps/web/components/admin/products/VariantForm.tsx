@@ -10,7 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { createProductVariantSchema } from '@/lib/validators/product';
 import { createProductVariant } from '@/lib/actions/product';
-import type { ProductVariant } from '@frc-e-commerce/db/schema';
+import type { ProductVariant, ProductImage } from '@frc-e-commerce/db/schema';
+import { ImageUploader } from './ImageUploader';
 
 // Concrete form values type for react-hook-form
 type VariantFormValues = {
@@ -25,12 +26,21 @@ type VariantFormValues = {
 interface VariantFormProps {
   productId: string;
   variants: ProductVariant[];
+  tenantSlug: string;
+  /** Map of variantId -> images already uploaded for that variant */
+  imagesByVariant: Record<string, ProductImage[]>;
 }
 
-export function VariantForm({ productId, variants: initialVariants }: VariantFormProps) {
+export function VariantForm({
+  productId,
+  variants: initialVariants,
+  tenantSlug,
+  imagesByVariant,
+}: VariantFormProps) {
   const [variants, setVariants] = useState<ProductVariant[]>(initialVariants);
   const [showForm, setShowForm] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [expandedVariantId, setExpandedVariantId] = useState<string | null>(null);
 
   const {
     register,
@@ -87,33 +97,44 @@ export function VariantForm({ productId, variants: initialVariants }: VariantFor
       <CardContent className="space-y-4">
         {/* Existing variants list */}
         {variants.length > 0 ? (
-          <div className="border rounded-md overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-muted-foreground text-left">
-                <tr>
-                  <th className="px-3 py-2">SKU</th>
-                  <th className="px-3 py-2">Nombre</th>
-                  <th className="px-3 py-2">Precio</th>
-                  <th className="px-3 py-2">Stock</th>
-                  <th className="px-3 py-2">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {variants.map((v) => (
-                  <tr key={v.id} className="border-t">
-                    <td className="px-3 py-2 font-mono text-xs">{v.sku}</td>
-                    <td className="px-3 py-2">{v.name}</td>
-                    <td className="px-3 py-2">{v.price.toLocaleString('es-PY')}</td>
-                    <td className="px-3 py-2">{v.stock}</td>
-                    <td className="px-3 py-2">
-                      <Badge variant={v.active ? 'success' : 'secondary'}>
-                        {v.active ? 'Activo' : 'Inactivo'}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="border rounded-md overflow-hidden divide-y">
+            {variants.map((v) => {
+              const variantImages = imagesByVariant[v.id] ?? [];
+              const isExpanded = expandedVariantId === v.id;
+              return (
+                <div key={v.id}>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 text-sm">
+                    <span className="font-mono text-xs">{v.sku}</span>
+                    <span className="flex-1 min-w-[8rem]">{v.name}</span>
+                    <span className="text-muted-foreground">
+                      {v.price.toLocaleString('es-PY')}
+                    </span>
+                    <span className="text-muted-foreground">stock {v.stock}</span>
+                    <Badge variant={v.active ? 'success' : 'secondary'}>
+                      {v.active ? 'Activo' : 'Inactivo'}
+                    </Badge>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setExpandedVariantId(isExpanded ? null : v.id)}
+                    >
+                      {isExpanded ? 'Cerrar' : `Imágenes (${variantImages.length})`}
+                    </Button>
+                  </div>
+                  {isExpanded && (
+                    <div className="border-t bg-muted/30 p-4">
+                      <ImageUploader
+                        productId={productId}
+                        tenantSlug={tenantSlug}
+                        images={variantImages}
+                        variantId={v.id}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">Aún no hay variantes.</p>

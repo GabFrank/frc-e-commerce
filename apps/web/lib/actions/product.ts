@@ -219,16 +219,38 @@ export async function createProductVariant(
 
 export async function addProductImage(
   productId: string,
-  data: { r2Key: string; url: string; alt?: string; position?: number }
+  data: {
+    r2Key: string;
+    url: string;
+    alt?: string;
+    position?: number;
+    variantId?: string | null;
+  }
 ): Promise<Result<{ imageId: string }>> {
   try {
     const tenantId = await guardTenant();
+
+    if (data.variantId) {
+      const [variant] = await db
+        .select({ id: productVariant.id })
+        .from(productVariant)
+        .where(
+          and(
+            eq(productVariant.id, data.variantId),
+            eq(productVariant.tenantId, tenantId),
+            eq(productVariant.productId, productId)
+          )
+        )
+        .limit(1);
+      if (!variant) return { ok: false, error: 'Variante inválida' };
+    }
 
     const [created] = await db
       .insert(productImage)
       .values({
         productId,
         tenantId,
+        variantId: data.variantId ?? null,
         r2Key: data.r2Key,
         url: data.url,
         alt: data.alt,

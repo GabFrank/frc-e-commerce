@@ -12,9 +12,16 @@ interface ImageUploaderProps {
   productId: string;
   tenantSlug: string;
   images: ProductImage[];
+  /** When set, uploaded images are tagged to this variant. null = product-level default. */
+  variantId?: string | null;
 }
 
-export function ImageUploader({ productId, tenantSlug, images: initialImages }: ImageUploaderProps) {
+export function ImageUploader({
+  productId,
+  tenantSlug,
+  images: initialImages,
+  variantId = null,
+}: ImageUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [images, setImages] = useState<ProductImage[]>(initialImages);
   const [uploading, setUploading] = useState(false);
@@ -55,6 +62,7 @@ export function ImageUploader({ productId, tenantSlug, images: initialImages }: 
           url: presign.publicUrl,
           alt: file.name,
           position: images.length,
+          variantId,
         });
 
         if (!res.ok) {
@@ -68,6 +76,7 @@ export function ImageUploader({ productId, tenantSlug, images: initialImages }: 
             id: res.imageId,
             productId,
             tenantId: '',
+            variantId,
             r2Key: presign.key,
             url: presign.publicUrl,
             alt: file.name,

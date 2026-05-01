@@ -3,8 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { and, asc, eq } from 'drizzle-orm';
 import { getCurrentTenant } from '@/lib/tenant';
-import { ProductPurchasePanel } from '@/components/storefront/product-purchase-panel';
-import { ProductGallery } from '@/components/storefront/product-gallery';
+import { ProductDetailView } from '@/components/storefront/product-detail-view';
 import type { VariantOption } from '@/components/storefront/variant-selector';
 import { db } from '@/lib/db';
 import { product, productVariant, productImage } from '@frc-e-commerce/db/schema';
@@ -60,13 +59,15 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
 
   const data = await loadProduct(tenant.id, slug);
   if (!data || data.product.status !== 'active') notFound();
-  const productData = {
-    ...data.product,
-    variants: data.variants,
-    images: data.images.map((img) => ({ id: img.id, url: img.url, alt: img.alt })),
-  };
 
-  const variantOptions: VariantOption[] = productData.variants
+  const detailImages = data.images.map((img) => ({
+    id: img.id,
+    url: img.url,
+    alt: img.alt,
+    variantId: img.variantId,
+  }));
+
+  const variantOptions: VariantOption[] = data.variants
     .filter((v) => v.active !== false)
     .map((v) => ({
       id: v.id,
@@ -79,44 +80,22 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      {/* Breadcrumb */}
       <nav className="mb-6 flex items-center gap-2 text-xs text-muted-foreground">
         <Link href="/" className="hover:underline">Inicio</Link>
         <span>/</span>
         <Link href="/productos" className="hover:underline">Productos</Link>
         <span>/</span>
-        <span className="text-foreground">{productData.name}</span>
+        <span className="text-foreground">{data.product.name}</span>
       </nav>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        {/* Galería de imágenes */}
-        <ProductGallery images={productData.images} productName={productData.name} />
-
-        {/* Info del producto */}
-        <div className="flex flex-col gap-5">
-          <h1 className="text-2xl font-bold">{productData.name}</h1>
-
-          {productData.description && (
-            <p className="text-sm leading-relaxed text-muted-foreground">{productData.description}</p>
-          )}
-
-          <ProductPurchasePanel
-            variants={variantOptions}
-            basePrice={productData.basePrice}
-            currency={productData.currency}
-          />
-
-          {/* Link al carrito */}
-          <div className="pt-2">
-            <Link
-              href="/carrito"
-              className="text-sm text-muted-foreground hover:underline"
-            >
-              Ver carrito
-            </Link>
-          </div>
-        </div>
-      </div>
+      <ProductDetailView
+        productName={data.product.name}
+        description={data.product.description}
+        images={detailImages}
+        variants={variantOptions}
+        basePrice={data.product.basePrice}
+        currency={data.product.currency}
+      />
     </div>
   );
 }

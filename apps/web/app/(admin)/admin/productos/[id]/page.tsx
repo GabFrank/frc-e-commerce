@@ -48,6 +48,16 @@ export default async function EditProductPage({ params }: Props) {
       .orderBy(productImage.position),
   ]);
 
+  const defaultImages = images.filter((img) => img.variantId === null);
+  const variantImagesByVariant = new Map<string, typeof images>();
+  for (const img of images) {
+    if (img.variantId) {
+      const existing = variantImagesByVariant.get(img.variantId) ?? [];
+      existing.push(img);
+      variantImagesByVariant.set(img.variantId, existing);
+    }
+  }
+
   return (
     <div className="max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
@@ -59,19 +69,27 @@ export default async function EditProductPage({ params }: Props) {
       {/* Product data form */}
       <ProductForm product={productData} categories={categories} />
 
-      {/* Variants */}
-      <VariantForm productId={id} variants={variants} />
+      {/* Variants — image management is nested per variant */}
+      <VariantForm
+        productId={id}
+        variants={variants}
+        tenantSlug={tenant?.slug ?? 'tenant'}
+        imagesByVariant={Object.fromEntries(variantImagesByVariant)}
+      />
 
-      {/* Images */}
+      {/* Default product images (shown when selected variant has none) */}
       <Card>
         <CardHeader>
-          <CardTitle>Imágenes</CardTitle>
+          <CardTitle>Imágenes por defecto</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Se usan cuando la variante seleccionada no tiene imágenes propias.
+          </p>
         </CardHeader>
         <CardContent>
           <ImageUploader
             productId={id}
             tenantSlug={tenant?.slug ?? 'tenant'}
-            images={images}
+            images={defaultImages}
           />
         </CardContent>
       </Card>

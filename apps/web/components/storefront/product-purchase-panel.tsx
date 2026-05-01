@@ -12,9 +12,15 @@ export interface ProductPurchasePanelProps {
   /** Fallback price si el variante seleccionado no tiene price */
   basePrice: number;
   currency: string;
+  onSelectedVariantChange?: (variantId: string | null) => void;
 }
 
-export function ProductPurchasePanel({ variants, basePrice, currency }: ProductPurchasePanelProps) {
+export function ProductPurchasePanel({
+  variants,
+  basePrice,
+  currency,
+  onSelectedVariantChange,
+}: ProductPurchasePanelProps) {
   const [selectedVariantId, setSelectedVariantId] = useState<string>(variants[0]?.id ?? '');
   const [selectedQty, setSelectedQty] = useState(1);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -29,6 +35,7 @@ export function ProductPurchasePanel({ variants, basePrice, currency }: ProductP
     setSelectedQty(qty);
     setStatus('idle');
     setMessage(null);
+    onSelectedVariantChange?.(variantId || null);
   };
 
   const handleAddToCart = async () => {
