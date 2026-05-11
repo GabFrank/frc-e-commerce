@@ -91,6 +91,9 @@ export async function posSearchProducts(input: z.infer<typeof searchSchema>): Pr
         price: productVariant.price,
         stock: productVariant.stock,
         name: productVariant.name,
+        color: productVariant.color,
+        size: productVariant.size,
+        sizeKind: productVariant.sizeKind,
         attributes: productVariant.attributes,
       })
       .from(productVariant)
@@ -140,7 +143,14 @@ export async function posSearchProducts(input: z.infer<typeof searchSchema>): Pr
               productName: p.name,
               sku: vList[0].sku,
               variantName: vList[0].name,
-              attributesLabel: attributesToLabel(vList[0].attributes ?? {}),
+              color: vList[0].color,
+              size: vList[0].size,
+              sizeKind: vList[0].sizeKind,
+              attributesLabel: formatVariantLabel(
+                vList[0].color,
+                vList[0].size,
+                vList[0].attributes ?? {}
+              ),
               price: vList[0].price,
               stock: vList[0].stock,
               imageUrl: productImg,
@@ -170,6 +180,9 @@ export type PosVariantOption = {
   productName: string;
   sku: string;
   variantName: string;
+  color: string | null;
+  size: string | null;
+  sizeKind: string | null;
   attributesLabel: string;
   price: number;
   stock: number;
@@ -198,6 +211,9 @@ export async function getProductVariants(productId: string): Promise<{
         name: productVariant.name,
         price: productVariant.price,
         stock: productVariant.stock,
+        color: productVariant.color,
+        size: productVariant.size,
+        sizeKind: productVariant.sizeKind,
         attributes: productVariant.attributes,
       })
       .from(productVariant)
@@ -207,7 +223,7 @@ export async function getProductVariants(productId: string): Promise<{
           eq(productVariant.active, true)
         )
       )
-      .orderBy(productVariant.name);
+      .orderBy(productVariant.color, productVariant.size, productVariant.name);
 
     // Imágenes por variante
     const images = await db
@@ -237,7 +253,10 @@ export async function getProductVariants(productId: string): Promise<{
         productName: p.name,
         sku: v.sku,
         variantName: v.name,
-        attributesLabel: attributesToLabel(v.attributes ?? {}),
+        color: v.color,
+        size: v.size,
+        sizeKind: v.sizeKind,
+        attributesLabel: formatVariantLabel(v.color, v.size, v.attributes ?? {}),
         price: v.price,
         stock: v.stock,
         imageUrl: imageByVariant.get(v.variantId) ?? defaultImg,
@@ -248,8 +267,16 @@ export async function getProductVariants(productId: string): Promise<{
   }
 }
 
-function attributesToLabel(attrs: Record<string, string>): string {
-  const entries = Object.entries(attrs);
-  if (entries.length === 0) return '';
-  return entries.map(([k, v]) => `${k}: ${v}`).join(' / ');
+function formatVariantLabel(
+  color: string | null | undefined,
+  size: string | null | undefined,
+  attrs: Record<string, string>
+): string {
+  const parts: string[] = [];
+  if (color) parts.push(color);
+  if (size) parts.push(`Talle ${size}`);
+  for (const [k, v] of Object.entries(attrs)) {
+    parts.push(`${k}: ${v}`);
+  }
+  return parts.join(' · ');
 }

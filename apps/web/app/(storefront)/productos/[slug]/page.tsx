@@ -18,7 +18,7 @@ async function loadProduct(tenantId: string, slug: string) {
   const variants = await db
     .select()
     .from(productVariant)
-    .where(eq(productVariant.productId, productRow.id));
+    .where(and(eq(productVariant.productId, productRow.id), eq(productVariant.active, true)));
   const images = await db
     .select()
     .from(productImage)
@@ -75,6 +75,9 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
       name: v.name,
       stock: v.stock,
       price: v.price,
+      color: v.color,
+      size: v.size,
+      sizeKind: v.sizeKind,
       attributes: (v.attributes ?? {}) as Record<string, string>,
     }));
 

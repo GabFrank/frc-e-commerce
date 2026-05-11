@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/select';
 import { createProductSchema } from '@/lib/validators/product';
 import { createProduct, updateProduct } from '@/lib/actions/product';
 import { slugify } from '@frc-e-commerce/shared-utils';
+import { GENDERS, type Gender } from '@/lib/clothing/sizes';
 import type { Category, Product } from '@frc-e-commerce/db/schema';
 import { z } from 'zod';
 
@@ -23,6 +24,7 @@ type ProductFormValues = {
   description: string;
   status: 'draft' | 'active' | 'archived';
   categoryId?: string;
+  gender: Gender;
   basePrice: number;
   currency: string;
   taxIncluded: boolean;
@@ -54,6 +56,7 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
       description: initial?.description ?? '',
       status: initial?.status ?? 'draft',
       categoryId: initial?.categoryId ?? undefined,
+      gender: (initial?.gender as Gender | undefined) ?? 'unisex',
       basePrice: initial?.basePrice ?? 0,
       currency: initial?.currency ?? 'PYG',
       taxIncluded: initial?.taxIncluded ?? false,
@@ -72,6 +75,7 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
       name: data.name,
       slug: data.slug,
       status: data.status,
+      gender: data.gender,
       basePrice: data.basePrice,
       currency: data.currency,
       taxIncluded: data.taxIncluded,
@@ -162,15 +166,30 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
             )}
           </div>
 
-          {/* Estado */}
-          <div className="space-y-1.5">
-            <Label htmlFor="status">Estado</Label>
-            <Select id="status" {...register('status')}>
-              <option value="draft">Borrador</option>
-              <option value="active">Activo</option>
-              <option value="archived">Archivado</option>
-            </Select>
-            {errors.status && <p className="text-xs text-destructive">{errors.status.message}</p>}
+          {/* Estado y género */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="status">Estado</Label>
+              <Select id="status" {...register('status')}>
+                <option value="draft">Borrador</option>
+                <option value="active">Activo</option>
+                <option value="archived">Archivado</option>
+              </Select>
+              {errors.status && <p className="text-xs text-destructive">{errors.status.message}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="gender">Género</Label>
+              <Select id="gender" {...register('gender')}>
+                {GENDERS.map((g) => (
+                  <option key={g.code} value={g.code}>
+                    {g.label}
+                  </option>
+                ))}
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Define el set de talles disponibles en cada variante.
+              </p>
+            </div>
           </div>
 
           {/* Categoría */}

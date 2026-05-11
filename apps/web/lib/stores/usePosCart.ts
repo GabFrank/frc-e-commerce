@@ -13,7 +13,13 @@ export type PosCartLine = {
   /** Snapshot al agregar — sobrevive cambios posteriores en el catálogo */
   productName: string;
   variantName: string;
-  /** Atributos de variante para display ("Talle M / Color rojo") */
+  /** Color canónico ("Rojo") o null. */
+  color: string | null;
+  /** Talle canónico ("M", "10") o null. */
+  size: string | null;
+  /** Padrón del talle: 'letter_adult' | 'number_kids' | null. */
+  sizeKind: string | null;
+  /** Atributos de variante para display ("Talle M · Rojo") */
   attributesLabel: string;
   /** SKU de la variante */
   sku: string;

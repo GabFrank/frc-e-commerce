@@ -29,6 +29,8 @@ export default async function ProductsPage() {
     .select({
       productId: productVariant.productId,
       variantCount: sql<number>`cast(count(*) as int)`,
+      colorCount: sql<number>`cast(count(distinct ${productVariant.color}) filter (where ${productVariant.color} is not null) as int)`,
+      sizeCount: sql<number>`cast(count(distinct ${productVariant.size}) filter (where ${productVariant.size} is not null) as int)`,
       totalStock: sql<number>`cast(coalesce(sum(${productVariant.stock}), 0) as int)`,
       firstSku: sql<string>`min(${productVariant.sku})`,
     })
@@ -75,14 +77,18 @@ export default async function ProductsPage() {
                     <td className="px-3 py-2 font-medium">{p.name}</td>
                     <td className="px-3 py-2 text-muted-foreground">
                       {summary ? (
-                        <span>
-                          <span className="font-mono text-xs">{summary.firstSku}</span>
-                          {summary.variantCount > 1 && (
-                            <span className="ml-1 text-xs text-muted-foreground/80">
-                              +{summary.variantCount - 1} más
-                            </span>
-                          )}
-                        </span>
+                        <div className="space-y-0.5">
+                          <div className="font-mono text-xs">{summary.firstSku}</div>
+                          <div className="text-xs text-muted-foreground/80">
+                            {summary.colorCount > 0 && summary.sizeCount > 0
+                              ? `${summary.colorCount} ${summary.colorCount === 1 ? 'color' : 'colores'} × ${summary.sizeCount} ${summary.sizeCount === 1 ? 'talle' : 'talles'} (${summary.variantCount})`
+                              : summary.colorCount > 0
+                                ? `${summary.colorCount} ${summary.colorCount === 1 ? 'color' : 'colores'} (${summary.variantCount})`
+                                : summary.sizeCount > 0
+                                  ? `${summary.sizeCount} ${summary.sizeCount === 1 ? 'talle' : 'talles'} (${summary.variantCount})`
+                                  : `${summary.variantCount} ${summary.variantCount === 1 ? 'variante' : 'variantes'}`}
+                          </div>
+                        </div>
                       ) : (
                         <span className="text-xs text-muted-foreground/80">Sin variantes</span>
                       )}

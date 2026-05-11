@@ -116,6 +116,16 @@ export const orderLine = pgTable(
     cancelledQuantity: integer('cancelled_quantity').notNull().default(0),
     // Optional cost snapshot for margin tracking
     costSnapshot: integer('cost_snapshot'),
+    /** Snapshot denormalizado de la variante al momento de la venta — protege reportes históricos
+     *  contra renombres/borrados posteriores. Forma: { color, size, sizeKind, sku, productName, variantName }. */
+    variantSnapshot: jsonb('variant_snapshot').$type<{
+      color: string | null;
+      size: string | null;
+      sizeKind: string | null;
+      sku: string;
+      productName: string;
+      variantName: string;
+    } | null>(),
   },
   (t) => ({
     orderIdIdx: index('order_line_order_id_idx').on(t.orderId),

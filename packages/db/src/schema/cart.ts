@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, jsonb, timestamp, index } from 'drizzle-orm/pg-core';
 import { tenant } from './tenant';
 import { user } from './user';
 
@@ -29,6 +29,15 @@ export const cartLine = pgTable(
     quantity: integer('quantity').notNull(),
     // Snapshot of unit price at time of adding to cart (in minor currency units)
     unitPrice: integer('unit_price').notNull(),
+    /** Snapshot denormalizado de la variante para mostrar info estable aunque el catálogo cambie. */
+    variantSnapshot: jsonb('variant_snapshot').$type<{
+      color: string | null;
+      size: string | null;
+      sizeKind: string | null;
+      sku: string;
+      productName: string;
+      variantName: string;
+    } | null>(),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (t) => ({

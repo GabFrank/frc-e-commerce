@@ -36,6 +36,7 @@ export const createProductSchema = z.object({
   description: optionalString,
   status: z.enum(['draft', 'active', 'archived']).default('draft'),
   categoryId: optionalUuid,
+  gender: z.enum(['masculino', 'femenino', 'unisex', 'infantil']).default('unisex'),
   /** Price in lowest denomination (centavos / céntimos) */
   basePrice: z
     .number()
@@ -52,7 +53,7 @@ export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 
 // ── ProductVariant ────────────────────────────────────────────────────────────
 
-export const createProductVariantSchema = z.object({
+const productVariantBaseSchema = z.object({
   sku: z.string().min(1, 'SKU requerido').max(100),
   name: z.string().min(1, 'Nombre requerido').max(200),
   price: z
@@ -65,11 +66,63 @@ export const createProductVariantSchema = z.object({
     .nonnegative()
     .nullish(),
   stock: z.number().int().nonnegative().default(0),
+  color: z.string().max(50).nullable().optional(),
+  size: z.string().max(10).nullable().optional(),
+  sizeKind: z.enum(['letter_adult', 'number_kids']).nullable().optional(),
   attributes: z.record(z.string(), z.string()).default({}),
   active: z.boolean().default(true),
 });
 
-export const updateProductVariantSchema = createProductVariantSchema.partial();
+export const bulkCreateVariantsSchema = z.object({
+  productId: z.string().uuid(),
+  colors: z.array(z.string().min(1).max(50)).max(50),
+  sizes: z.array(z.string().min(1).max(10)).max(50),
+  sizeKind: z.enum(['letter_adult', 'number_kids']).nullable().optional(),
+  basePrice: z.number().int().nonnegative(),
+  baseStock: z.number().int().nonnegative().default(0),
+  skuPrefix: z.string().max(20).optional(),
+  /** Overrides puntuales por (color, size). Falta de match con la matriz se ignora silenciosamente. */
+  overrides: z
+    .array(
+      z.object({
+        color: z.string().max(50).nullable(),
+        size: z.string().max(10).nullable(),
+        price: z.number().int().nonnegative().optional(),
+        stock: z.number().int().nonnegative().optional(),
+      })
+    )
+    .max(500)
+    .optional(),
+  /** Combinaciones (color, size) que el usuario excluyó explícitamente — no se crean. */
+  exclude: z
+    .array(
+      z.object({
+        color: z.string().max(50).nullable(),
+        size: z.string().max(10).nullable(),
+      })
+    )
+    .max(500)
+    .optional(),
+});
+
+export type BulkCreateVariantsInput = z.infer<typeof bulkCreateVariantsSchema>;
+
+const sizePairCheck = (v: { size?: string | null; sizeKind?: 'letter_adult' | 'number_kids' | null }) => {
+  // Si hay talle, debe venir con su tipo (adulto/infantil). El front lo deriva del género del producto.
+  if (v.size && !v.sizeKind) return false;
+  if (!v.size && v.sizeKind) return false;
+  return true;
+};
+
+export const createProductVariantSchema = productVariantBaseSchema.refine(sizePairCheck, {
+  message: 'Falta el tipo de talle (adulto / infantil)',
+  path: ['size'],
+});
+
+export const updateProductVariantSchema = productVariantBaseSchema.partial().refine(sizePairCheck, {
+  message: 'Falta el tipo de talle (adulto / infantil)',
+  path: ['size'],
+});
 
 export type CreateProductVariantInput = z.infer<typeof createProductVariantSchema>;
 export type UpdateProductVariantInput = z.infer<typeof updateProductVariantSchema>;

@@ -72,6 +72,7 @@ export default async function EditProductPage({ params }: Props) {
       {/* Variants — image management is nested per variant */}
       <VariantForm
         productId={id}
+        productGender={productData.gender}
         variants={variants}
         tenantSlug={tenant?.slug ?? 'tenant'}
         imagesByVariant={Object.fromEntries(variantImagesByVariant)}

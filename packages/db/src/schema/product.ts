@@ -16,6 +16,13 @@ import { tenant } from './tenant';
 
 export const productStatus = pgEnum('product_status', ['draft', 'active', 'archived']);
 
+export const productGender = pgEnum('product_gender', [
+  'masculino',
+  'femenino',
+  'unisex',
+  'infantil',
+]);
+
 // ── Category ──────────────────────────────────────────────────────────────────
 
 export const category = pgTable(
@@ -57,6 +64,8 @@ export const product = pgTable(
     description: text('description'),
     status: productStatus('status').notNull().default('draft'),
     categoryId: uuid('category_id').references(() => category.id, { onDelete: 'set null' }),
+    /** Género de la prenda. Default 'unisex' para no romper productos sin clasificación. */
+    gender: productGender('gender').notNull().default('unisex'),
     /** Price in lowest denomination (centavos / céntimos) */
     basePrice: integer('base_price').notNull(),
     currency: text('currency').notNull().default('PYG'),
@@ -67,6 +76,7 @@ export const product = pgTable(
   (t) => ({
     uniqueSlug: unique('uq_product_tenant_slug').on(t.tenantId, t.slug),
     tenantIdx: index('idx_product_tenant_id').on(t.tenantId),
+    genderIdx: index('idx_product_gender').on(t.tenantId, t.gender),
   })
 );
 
@@ -90,13 +100,22 @@ export const productVariant = pgTable(
     price: integer('price').notNull(),
     compareAtPrice: integer('compare_at_price'),
     stock: integer('stock').notNull().default(0),
-    /** Key-value pairs describing the variant (e.g. { color: 'rojo', talle: 'M' }) */
+    /** Color en texto libre (ej: "Rojo", "Azul Marino"). Null = producto sin variación de color. */
+    color: text('color'),
+    /** Talle canónico de la variante. Letras (XS..XXXL) para adultos; números (2..16) para infantil. */
+    size: text('size'),
+    /** Padrón del talle: 'letter_adult' | 'number_kids'. Null = sin talle (accesorios). */
+    sizeKind: text('size_kind'),
+    /** Atributos extra libres (material, fit, etc.) — color y talle viven en columnas dedicadas. */
     attributes: jsonb('attributes').$type<Record<string, string>>().notNull().default({}),
     active: boolean('active').notNull().default(true),
   },
   (t) => ({
     uniqueSku: unique('uq_variant_tenant_sku').on(t.tenantId, t.sku),
+    /** Postgres trata NULL como distinto, así que dos variantes con (color=null, size=null) son válidas — usar solo cuando alguno tiene valor. */
+    uniqueColorSize: unique('uq_variant_product_color_size').on(t.productId, t.color, t.size),
     tenantIdx: index('idx_variant_tenant_id').on(t.tenantId),
+    productColorIdx: index('idx_variant_product_color').on(t.productId, t.color),
   })
 );
 

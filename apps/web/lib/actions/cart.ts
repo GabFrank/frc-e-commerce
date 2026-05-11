@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { eq, and } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { cart, cartLine, type Cart, type CartLine } from '@frc-e-commerce/db/schema';
+import { cart, cartLine, productVariant, product, type Cart, type CartLine } from '@frc-e-commerce/db/schema';
 import { requireTenantId } from '@/lib/tenant';
 import { getSession } from '@/lib/auth/guards';
 
@@ -88,7 +88,17 @@ export async function addToCart(
   if (quantity <= 0) return { ok: false, error: 'La cantidad debe ser mayor a 0' };
 
   try {
-    await requireTenantId();
+    const tenantId = await requireTenantId();
+
+    // Rechazo temprano si la variante no existe, no es del tenant, o fue archivada.
+    const [vCheck] = await db
+      .select({ active: productVariant.active })
+      .from(productVariant)
+      .where(and(eq(productVariant.id, variantId), eq(productVariant.tenantId, tenantId)))
+      .limit(1);
+    if (!vCheck) return { ok: false, error: 'Variante no encontrada' };
+    if (!vCheck.active) return { ok: false, error: 'Esta variante ya no está disponible' };
+
     const currentCart = await getOrCreateCart();
 
     // Check if this variant is already in the cart
@@ -104,11 +114,36 @@ export async function addToCart(
         .set({ quantity: existingLine.quantity + quantity })
         .where(eq(cartLine.id, existingLine.id));
     } else {
+      // Snapshot denormalizado para que el carrito muestre datos consistentes
+      const [vDetail] = await db
+        .select({
+          color: productVariant.color,
+          size: productVariant.size,
+          sizeKind: productVariant.sizeKind,
+          sku: productVariant.sku,
+          variantName: productVariant.name,
+          productName: product.name,
+        })
+        .from(productVariant)
+        .innerJoin(product, eq(product.id, productVariant.productId))
+        .where(eq(productVariant.id, variantId))
+        .limit(1);
+
       await db.insert(cartLine).values({
         cartId: currentCart.id,
         variantId,
         quantity,
         unitPrice,
+        variantSnapshot: vDetail
+          ? {
+              color: vDetail.color,
+              size: vDetail.size,
+              sizeKind: vDetail.sizeKind,
+              sku: vDetail.sku,
+              productName: vDetail.productName,
+              variantName: vDetail.variantName,
+            }
+          : null,
       });
     }
 
