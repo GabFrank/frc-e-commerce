@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { and, asc, desc, eq, ilike, sql } from 'drizzle-orm';
 import { getCurrentTenant } from '@/lib/tenant';
@@ -156,9 +157,9 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
             <div className="flex min-h-60 flex-col items-center justify-center gap-3 rounded-xl border border-dashed text-muted-foreground/80">
               <p className="text-sm">No se encontraron productos.</p>
               {query && (
-                <a href="/productos" className="text-xs underline">
+                <Link href="/productos" className="text-xs underline">
                   Limpiar búsqueda
-                </a>
+                </Link>
               )}
             </div>
           ) : (

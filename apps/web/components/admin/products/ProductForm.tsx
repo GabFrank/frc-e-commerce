@@ -47,8 +47,8 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
     setValue,
     watch,
     formState: { errors, isSubmitting },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } = useForm<ProductFormValues>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(createProductSchema) as any,
     defaultValues: {
       name: initial?.name ?? '',
