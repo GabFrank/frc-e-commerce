@@ -1,6 +1,9 @@
 'use client';
 
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { LockKeyhole } from 'lucide-react';
 import type { TenantMemberRole } from '@frc-e-commerce/db/schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,6 +40,7 @@ export type PosTenantContext = {
     enabledCurrencies: string[];
     pricingDisplayCurrencies: string[];
     paymentMethods: string[];
+    primaryPaymentMethod: string | null;
     searchShowImages: boolean;
     showCostToAdmin: boolean;
     strictStock: boolean;
@@ -60,6 +64,8 @@ export function PosShell({
   ctx: PosTenantContext;
   activeSession: ActiveSessionInfo | null;
 }) {
+  const searchParams = useSearchParams();
+  const shouldAutoClose = searchParams?.get('close') === '1' && !!activeSession;
   const [searchOpen, setSearchOpen] = useState(false);
   const [variantDialog, setVariantDialog] = useState<{
     productId: string;
@@ -67,7 +73,7 @@ export function PosShell({
   } | null>(null);
   const [lineDialog, setLineDialog] = useState<PosVariantOption | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [closeOpen, setCloseOpen] = useState(false);
+  const [closeOpen, setCloseOpen] = useState(shouldAutoClose);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const cart = usePosCart();
   const totals = calcTotal({
@@ -117,6 +123,41 @@ export function PosShell({
   };
 
   return (
+    <>
+      <header className="flex h-12 shrink-0 items-center justify-between border-b bg-card px-4 text-sm">
+        <div className="flex items-center gap-4">
+          <span className="font-semibold">{ctx.tenantName} · POS</span>
+          <span className="text-muted-foreground">
+            Cajero: <strong className="text-foreground">{ctx.cashierName}</strong> ({ctx.role})
+          </span>
+          {activeSession ? (
+            <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-900">
+              Caja abierta {new Date(activeSession.openedAt).toLocaleString('es-PY')}
+            </span>
+          ) : (
+            <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">
+              Sin caja abierta
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          {activeSession && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setCloseOpen(true)}
+              title="Cerrar caja (F9)"
+            >
+              <LockKeyhole className="mr-1 h-3.5 w-3.5" />
+              Cerrar caja
+            </Button>
+          )}
+          <Link href="/admin" className="text-muted-foreground hover:underline">
+            ← Volver a admin
+          </Link>
+        </div>
+      </header>
     <div className="grid flex-1 grid-cols-[1fr_400px] overflow-hidden">
       {/* Izquierda: búsqueda + atajos */}
       <section className="flex flex-col gap-4 p-4 overflow-y-auto">
@@ -207,6 +248,9 @@ export function PosShell({
             productName: line.productName,
             sku: line.sku,
             variantName: line.variantName,
+            color: line.color,
+            size: line.size,
+            sizeKind: line.sizeKind,
             attributesLabel: line.attributesLabel,
             price: line.unitPrice,
             stock: line.availableStock,
@@ -260,5 +304,6 @@ export function PosShell({
         />
       )}
     </div>
+    </>
   );
 }

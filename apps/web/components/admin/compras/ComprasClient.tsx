@@ -285,7 +285,7 @@ function CreatePOForm({
             <table className="w-full text-sm">
               <thead className="text-xs text-muted-foreground">
                 <tr>
-                  <th className="text-left">Variant ID</th>
+                  <th className="text-left">Variante (UUID — buscar en /admin/productos)</th>
                   <th className="text-right">Cantidad</th>
                   <th className="text-right">Costo unitario</th>
                   <th className="text-right">Subtotal</th>

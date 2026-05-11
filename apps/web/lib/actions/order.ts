@@ -105,7 +105,7 @@ export async function createOrderFromCart(input: CreateOrderInput): Promise<Crea
 
     if (!createdOrder) return { ok: false, error: 'No se pudo crear el pedido' };
 
-    // Insert order lines
+    // Insert order lines (incluye snapshot denormalizado para reportes históricos)
     await db.insert(orderLine).values(
       lines.map((l) => ({
         orderId: createdOrder.id,
@@ -114,6 +114,7 @@ export async function createOrderFromCart(input: CreateOrderInput): Promise<Crea
         quantity: l.quantity,
         unitPrice: l.unitPrice,
         totalPrice: l.unitPrice * l.quantity,
+        variantSnapshot: l.variantSnapshot ?? null,
       }))
     );
 

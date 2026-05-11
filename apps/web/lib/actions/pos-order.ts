@@ -35,6 +35,10 @@ const lineSchema = z.object({
   variantId: z.string().uuid(),
   productName: z.string(),
   variantName: z.string(),
+  sku: z.string().optional(),
+  color: z.string().nullable().optional(),
+  size: z.string().nullable().optional(),
+  sizeKind: z.string().nullable().optional(),
   unitPrice: z.number().int().min(0),
   quantity: z.number().int().min(1),
   discountAmount: z.number().int().min(0).default(0),
@@ -172,6 +176,14 @@ export async function createPosOrder(input: z.infer<typeof createPosOrderSchema>
           complimentaryAuthorizedBy: l.complimentaryAuthorizedBy ?? null,
           complimentaryAuthorizedAt: l.complimentaryAuthorizedBy ? new Date() : null,
           costSnapshot: cost,
+          variantSnapshot: {
+            color: l.color ?? null,
+            size: l.size ?? null,
+            sizeKind: l.sizeKind ?? null,
+            sku: l.sku ?? '',
+            productName: l.productName,
+            variantName: l.variantName,
+          },
         });
 
         await tx.insert(stockMovement).values({

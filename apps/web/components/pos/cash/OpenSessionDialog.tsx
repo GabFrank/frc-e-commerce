@@ -67,7 +67,12 @@ export function OpenSessionDialog({
 
   return (
     <>
-      <Dialog open>
+      <Dialog
+        open
+        onOpenChange={(o) => {
+          if (!o) router.push('/admin');
+        }}
+      >
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Abrir caja</DialogTitle>
@@ -144,6 +149,13 @@ export function OpenSessionDialog({
           )}
 
           <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => router.push('/admin')}
+              disabled={pending}
+            >
+              Salir
+            </Button>
             <Button onClick={handleOpen} disabled={pending}>
               {pending ? 'Abriendo…' : 'Abrir caja'}
             </Button>

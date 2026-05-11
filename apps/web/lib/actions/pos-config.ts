@@ -28,17 +28,23 @@ export async function getPosConfig(): Promise<PosConfig | null> {
   return c ?? null;
 }
 
-const updateSchema = z.object({
-  enabledCurrencies: z.array(z.string()).min(1),
-  pricingDisplayCurrencies: z.array(z.string()),
-  paymentMethods: z.array(z.string()).min(1),
-  searchShowImages: z.boolean(),
-  showCostToAdmin: z.boolean(),
-  strictStock: z.boolean(),
-  ticketPrefix: z.string().min(1).max(10),
-  receiptHeader: z.string().optional(),
-  receiptFooter: z.string().optional(),
-});
+const updateSchema = z
+  .object({
+    enabledCurrencies: z.array(z.string()).min(1),
+    pricingDisplayCurrencies: z.array(z.string()),
+    paymentMethods: z.array(z.string()).min(1),
+    primaryPaymentMethod: z.string().nullable().optional(),
+    searchShowImages: z.boolean(),
+    showCostToAdmin: z.boolean(),
+    strictStock: z.boolean(),
+    ticketPrefix: z.string().min(1).max(10),
+    receiptHeader: z.string().optional(),
+    receiptFooter: z.string().optional(),
+  })
+  .refine(
+    (v) => !v.primaryPaymentMethod || v.paymentMethods.includes(v.primaryPaymentMethod),
+    { message: 'El método principal debe estar dentro de los métodos aceptados', path: ['primaryPaymentMethod'] }
+  );
 
 export async function updatePosConfig(input: z.infer<typeof updateSchema>) {
   try {
@@ -52,6 +58,8 @@ export async function updatePosConfig(input: z.infer<typeof updateSchema>) {
       .where(eq(posConfig.tenantId, tenantId))
       .limit(1);
 
+    const primaryPaymentMethod = parsed.primaryPaymentMethod ?? null;
+
     if (existing) {
       await db
         .update(posConfig)
@@ -59,6 +67,7 @@ export async function updatePosConfig(input: z.infer<typeof updateSchema>) {
           enabledCurrencies: parsed.enabledCurrencies,
           pricingDisplayCurrencies: parsed.pricingDisplayCurrencies,
           paymentMethods: parsed.paymentMethods,
+          primaryPaymentMethod,
           searchShowImages: parsed.searchShowImages,
           showCostToAdmin: parsed.showCostToAdmin,
           strictStock: parsed.strictStock,
@@ -74,6 +83,7 @@ export async function updatePosConfig(input: z.infer<typeof updateSchema>) {
         enabledCurrencies: parsed.enabledCurrencies,
         pricingDisplayCurrencies: parsed.pricingDisplayCurrencies,
         paymentMethods: parsed.paymentMethods,
+        primaryPaymentMethod,
         searchShowImages: parsed.searchShowImages,
         showCostToAdmin: parsed.showCostToAdmin,
         strictStock: parsed.strictStock,

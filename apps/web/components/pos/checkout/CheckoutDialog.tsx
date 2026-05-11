@@ -49,6 +49,10 @@ export function CheckoutDialog({
   const primary = cart.primaryCurrencyOverride ?? ctx.primaryCurrency;
   const primaryCfg = ctx.currencies.find((c) => c.code === primary);
   const enabledMethods = ctx.posConfig.paymentMethods;
+  const defaultMethod =
+    (ctx.posConfig.primaryPaymentMethod && enabledMethods.includes(ctx.posConfig.primaryPaymentMethod)
+      ? ctx.posConfig.primaryPaymentMethod
+      : enabledMethods[0]) ?? 'efectivo';
   const enabledCurrencies = ctx.currencies.filter((c) =>
     ctx.posConfig.enabledCurrencies.includes(c.code)
   );
@@ -57,7 +61,7 @@ export function CheckoutDialog({
     {
       id: genId(),
       kind: 'payment',
-      paymentMethod: enabledMethods[0] ?? 'efectivo',
+      paymentMethod: defaultMethod,
       currencyCode: primary,
       amount: totals.total,
       exchangeRateSnapshot: null,
@@ -107,7 +111,7 @@ export function CheckoutDialog({
       {
         id: genId(),
         kind: 'payment',
-        paymentMethod: enabledMethods[0] ?? 'efectivo',
+        paymentMethod: defaultMethod,
         currencyCode: primary,
         amount: 0,
         exchangeRateSnapshot: null,
@@ -139,6 +143,10 @@ export function CheckoutDialog({
           variantId: l.variantId,
           productName: l.productName,
           variantName: l.variantName,
+          sku: l.sku,
+          color: l.color,
+          size: l.size,
+          sizeKind: l.sizeKind,
           unitPrice: l.unitPrice,
           quantity: l.quantity,
           discountAmount:

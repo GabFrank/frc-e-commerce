@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { eq, and, desc } from 'drizzle-orm';
 import { db } from '@/lib/db';
@@ -94,6 +93,7 @@ export default async function PosPage() {
       enabledCurrencies: cfg.enabledCurrencies,
       pricingDisplayCurrencies: cfg.pricingDisplayCurrencies,
       paymentMethods: cfg.paymentMethods,
+      primaryPaymentMethod: cfg.primaryPaymentMethod,
       searchShowImages: cfg.searchShowImages,
       showCostToAdmin: cfg.showCostToAdmin,
       strictStock: cfg.strictStock,
@@ -126,49 +126,13 @@ export default async function PosPage() {
   }
 
   return (
-    <>
-      <PosHeader ctx={ctx} session={active} />
-      <PosShell
-        ctx={ctx}
-        activeSession={
-          active
-            ? { id: active.id, openedAt: active.openedAt, openCurrencies }
-            : null
-        }
-      />
-    </>
-  );
-}
-
-function PosHeader({
-  ctx,
-  session,
-}: {
-  ctx: PosTenantContext;
-  session: { openedAt: Date } | null;
-}) {
-  return (
-    <header className="flex h-12 shrink-0 items-center justify-between border-b bg-card px-4 text-sm">
-      <div className="flex items-center gap-4">
-        <span className="font-semibold">{ctx.tenantName} · POS</span>
-        <span className="text-muted-foreground">
-          Cajero: <strong className="text-foreground">{ctx.cashierName}</strong> ({ctx.role})
-        </span>
-        {session ? (
-          <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-900">
-            Caja abierta {new Date(session.openedAt).toLocaleString('es-PY')}
-          </span>
-        ) : (
-          <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">
-            Sin caja abierta
-          </span>
-        )}
-      </div>
-      <div className="flex items-center gap-3 text-xs">
-        <Link href="/admin" className="text-muted-foreground hover:underline">
-          ← Volver a admin
-        </Link>
-      </div>
-    </header>
+    <PosShell
+      ctx={ctx}
+      activeSession={
+        active
+          ? { id: active.id, openedAt: active.openedAt, openCurrencies }
+          : null
+      }
+    />
   );
 }

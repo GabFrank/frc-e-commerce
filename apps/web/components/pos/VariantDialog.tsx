@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import Image from 'next/image';
 import { Loader2, Package } from 'lucide-react';
 import {
@@ -22,34 +22,59 @@ type Props = {
 export function VariantDialog({ productId, productName, onClose, onPick }: Props) {
   const [variants, setVariants] = useState<PosVariantOption[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     startTransition(async () => {
       const res = await getProductVariants(productId);
-      if (res.ok) setVariants(res.variants);
-      else setError(res.error);
+      if (res.ok) {
+        setVariants(res.variants);
+        const firstColor = res.variants.find((v) => v.color)?.color ?? null;
+        setSelectedColor(firstColor);
+      } else {
+        setError(res.error);
+      }
     });
   }, [productId]);
+
+  const colors = useMemo(() => {
+    const set = new Set<string>();
+    for (const v of variants) {
+      if (v.color) set.add(v.color);
+    }
+    return Array.from(set);
+  }, [variants]);
+
+  const filteredVariants = useMemo(() => {
+    if (colors.length === 0) return variants;
+    if (selectedColor === null) return variants.filter((v) => !v.color);
+    return variants.filter((v) => v.color === selectedColor);
+  }, [variants, colors, selectedColor]);
+
+  const handleColorChange = (c: string | null) => {
+    setSelectedColor(c);
+    setSelectedIdx(0);
+  };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedIdx((i) => Math.min(variants.length - 1, i + 1));
+        setSelectedIdx((i) => Math.min(filteredVariants.length - 1, i + 1));
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setSelectedIdx((i) => Math.max(0, i - 1));
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        const v = variants[selectedIdx];
+        const v = filteredVariants[selectedIdx];
         if (v) onPick(v);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [variants, selectedIdx, onPick]);
+  }, [filteredVariants, selectedIdx, onPick]);
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -68,8 +93,43 @@ export function VariantDialog({ productId, productName, onClose, onPick }: Props
           <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
         )}
 
+        {colors.length > 0 && (
+          <div className="space-y-1.5">
+            <div className="text-xs text-muted-foreground">Color</div>
+            <div className="flex flex-wrap gap-1.5">
+              {colors.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => handleColorChange(c)}
+                  className={`rounded-md border px-3 py-1 text-sm transition-colors ${
+                    selectedColor === c
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'hover:border-primary'
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+              {variants.some((v) => !v.color) && (
+                <button
+                  type="button"
+                  onClick={() => handleColorChange(null)}
+                  className={`rounded-md border px-3 py-1 text-sm transition-colors ${
+                    selectedColor === null
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'hover:border-primary'
+                  }`}
+                >
+                  Sin color
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
-          {variants.map((v, i) => (
+          {filteredVariants.map((v, i) => (
             <button
               key={v.variantId}
               onClick={() => onPick(v)}
@@ -92,8 +152,10 @@ export function VariantDialog({ productId, productName, onClose, onPick }: Props
                 </div>
               )}
               <div className="text-sm">
-                <div className="font-medium leading-tight">{v.variantName}</div>
-                <div className="text-xs text-muted-foreground">{v.attributesLabel}</div>
+                <div className="font-medium leading-tight">
+                  {v.size ? `Talle ${v.size}` : v.variantName}
+                </div>
+                {v.color && <div className="text-xs text-muted-foreground">{v.color}</div>}
                 <div className="text-xs text-muted-foreground">
                   SKU: {v.sku} · stock: {v.stock}
                 </div>

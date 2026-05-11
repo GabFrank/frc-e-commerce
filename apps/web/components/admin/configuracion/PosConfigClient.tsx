@@ -38,6 +38,9 @@ export function PosConfigClient({
   const [paymentMethods, setPaymentMethods] = useState<string[]>(
     initial?.paymentMethods ?? ['efectivo']
   );
+  const [primaryPaymentMethod, setPrimaryPaymentMethod] = useState<string | null>(
+    initial?.primaryPaymentMethod ?? (initial?.paymentMethods?.[0] ?? 'efectivo')
+  );
   const [searchShowImages, setSearchShowImages] = useState(initial?.searchShowImages ?? true);
   const [showCostToAdmin, setShowCostToAdmin] = useState(initial?.showCostToAdmin ?? true);
   const [strictStock, setStrictStock] = useState(initial?.strictStock ?? false);
@@ -57,10 +60,15 @@ export function PosConfigClient({
   const onSave = () => {
     setError(null);
     startTransition(async () => {
+      const effectivePrimary =
+        primaryPaymentMethod && paymentMethods.includes(primaryPaymentMethod)
+          ? primaryPaymentMethod
+          : (paymentMethods[0] ?? null);
       const res = await updatePosConfig({
         enabledCurrencies,
         pricingDisplayCurrencies,
         paymentMethods,
+        primaryPaymentMethod: effectivePrimary,
         searchShowImages,
         showCostToAdmin,
         strictStock,
@@ -137,19 +145,48 @@ export function PosConfigClient({
           <CardHeader>
             <CardTitle>Métodos de pago aceptados</CardTitle>
             <CardDescription>
-              Los métodos que aparecen como opción al cobrar.
+              Los métodos que aparecen como opción al cobrar. Marcá uno como principal para
+              precargarlo en el diálogo de cobro.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            {ALL_METHODS.map((m) => (
-              <div key={m.code} className="flex items-center justify-between rounded-md border p-2">
-                <span className="text-sm">{m.label}</span>
-                <Switch
-                  checked={paymentMethods.includes(m.code)}
-                  onCheckedChange={(v) => toggle(paymentMethods, setPaymentMethods, m.code, v)}
-                />
-              </div>
-            ))}
+            {ALL_METHODS.map((m) => {
+              const enabled = paymentMethods.includes(m.code);
+              const isPrimary = primaryPaymentMethod === m.code;
+              return (
+                <div key={m.code} className="flex items-center justify-between rounded-md border p-2">
+                  <div className="flex items-center gap-3 text-sm">
+                    <span>{m.label}</span>
+                    {isPrimary && (
+                      <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
+                        Principal
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => enabled && setPrimaryPaymentMethod(m.code)}
+                      disabled={!enabled}
+                      className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+                      title={enabled ? 'Marcar como principal' : 'Activá el método antes de marcarlo principal'}
+                    >
+                      {isPrimary ? '★ Principal' : 'Hacer principal'}
+                    </button>
+                    <Switch
+                      checked={enabled}
+                      onCheckedChange={(v) => {
+                        toggle(paymentMethods, setPaymentMethods, m.code, v);
+                        if (!v && isPrimary) {
+                          const fallback = paymentMethods.find((p) => p !== m.code) ?? null;
+                          setPrimaryPaymentMethod(fallback);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       </TabsContent>

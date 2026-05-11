@@ -14,6 +14,8 @@ export const posConfig = pgTable('pos_config', {
   pricingDisplayCurrencies: text('pricing_display_currencies').array().notNull().default([]),
   /** Métodos de pago aceptados: 'efectivo', 'transferencia', 'tarjeta_pos', 'cheque'. */
   paymentMethods: text('payment_methods').array().notNull().default([]),
+  /** Método de pago precargado al abrir el diálogo de cobro; debe estar en paymentMethods. */
+  primaryPaymentMethod: text('primary_payment_method'),
   /** Mostrar imágenes en el diálogo de búsqueda. */
   searchShowImages: boolean('search_show_images').notNull().default(true),
   /** Mostrar costo del producto a usuarios admin/manager. */
