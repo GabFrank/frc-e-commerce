@@ -4,9 +4,11 @@ import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { requireSession, getMembership } from '@/lib/auth/guards';
 import { getCurrentTenant, TENANT_OVERRIDE_COOKIE } from '@/lib/tenant';
+import { hasCapability } from '@/lib/auth/permissions';
 import { db } from '@/lib/db';
 import { user as userTable } from '@frc-e-commerce/db/schema';
 import { ExitTenantOverrideButton } from '@/components/admin/exit-tenant-override-button';
+import { SidebarNavGroup } from '@/components/admin/SidebarNavGroup';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -27,6 +29,19 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     .where(eq(userTable.id, session.user.id))
     .limit(1);
   const isSuperAdmin = !!u?.isSuperAdmin;
+
+  const role = membership.role;
+  const financieroItems = (
+    [
+      { href: '/admin/financiero/cajas', label: 'Cajas', cap: 'reports.financial' as const },
+      { href: '/admin/pedidos', label: 'Pedidos / Ventas', cap: 'order.view' as const },
+      { href: '/admin/compras', label: 'Compras', cap: 'purchase.view' as const },
+      { href: '/admin/proveedores', label: 'Proveedores', cap: 'supplier.write' as const },
+    ]
+      .filter((i) => hasCapability(role, i.cap))
+      .map(({ href, label }) => ({ href, label }))
+  );
+  const canSeeConfig = hasCapability(role, 'tenant.settings');
 
   return (
     <div className="flex min-h-screen">
@@ -49,18 +64,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/admin/productos" className="rounded px-2 py-1.5 hover:bg-muted">
             Productos
           </Link>
-          <Link href="/admin/pedidos" className="rounded px-2 py-1.5 hover:bg-muted">
-            Pedidos
-          </Link>
-          <Link href="/admin/proveedores" className="rounded px-2 py-1.5 hover:bg-muted">
-            Proveedores
-          </Link>
-          <Link href="/admin/compras" className="rounded px-2 py-1.5 hover:bg-muted">
-            Compras
-          </Link>
-          <Link href="/admin/configuracion" className="rounded px-2 py-1.5 hover:bg-muted">
-            Configuración
-          </Link>
+          {financieroItems.length > 0 && (
+            <SidebarNavGroup label="Financiero" items={financieroItems} />
+          )}
+          {canSeeConfig && (
+            <Link href="/admin/configuracion" className="rounded px-2 py-1.5 hover:bg-muted">
+              Configuración
+            </Link>
+          )}
           <Link
             href="/pos"
             className="mt-2 rounded bg-primary px-2 py-1.5 text-center font-medium text-primary-foreground hover:bg-primary/90"
