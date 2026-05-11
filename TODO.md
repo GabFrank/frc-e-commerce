@@ -12,20 +12,23 @@ Las prioridades son orientativas; el orden real lo decide el usuario.
 
 ## 🔴 Crítico para MVP back-office (entra al producto vendible)
 
-### Multi-moneda (M1 — base para todo lo demás)
+> **Estado al 2026-05-11**: M1–M7 base completos. Pendiente cerrar M7 con catálogo masivo (CSV, bulk actions, branding), Resend y audit log. Reportes ya están funcionando con las 5 tabs.
 
-- [ ] **Schemas:** `currency` (master), `tenant_currency` (1 primary + N secundarias activas), `exchange_rate` versionado por timestamp (buyRate/sellRate manual), `denomination` (master por moneda — billetes y monedas).
-- [ ] **Seed:** PYG/USD/BRL + denominaciones reales completas. `tenant_currency` para tenant `demo`: PYG primary + USD/BRL activos. `exchange_rate` inicial dummy (~7.300 PYG/USD, ~1.300 PYG/BRL).
-- [ ] **UI `/admin/configuracion/monedas`:** activar/desactivar monedas del tenant, marcar primary, actualizar buy/sell rates (cada cambio inserta nueva fila en `exchange_rate`).
-- [ ] **`packages/shared-utils/currency`:** extender con `formatMoneyMultiCurrency` (devuelve N representaciones del mismo monto) y `parseMoneyInput`.
+### M1–M6 ✅ Completados
 
-### Permisos (M1 — RBAC)
+- [x] **Multi-moneda + RBAC + UI configuración monedas** — schemas currency/tenant_currency/exchange_rate/denomination + capability matrix + `hasCapability` + `requireSessionCapability` (commit `3aa1d11`).
+- [x] **Customer + admin override + POS skeleton multi-moneda** — schema customer + autocomplete + override admin via `validateAdminCredential` (commit `2858e69`).
+- [x] **Cash session apertura/cierre + cobro POS multi-moneda + stock movements** — cash_session/cash_session_balance/cash_movement/cash_closure/cash_closure_metric, diálogos apertura+cierre, createPosOrder transaccional (commit `3aba604`).
+- [x] **Compras + proveedores + lógica prorrateo costos extras** — supplier, purchase_order(*), 4 estrategias de allocation (cost/equal/qty/manual), weighted average avg_cost (commit `04c9895`).
+- [x] **Cancelar/devolver venta POS desde admin** — `cancelPosOrder` + `registerSaleReturn`, impacto contable cross-sesión (commit `2c8b03b`).
 
-- [ ] **`apps/web/lib/auth/permissions.ts`:** type `Capability`, matrix `ROLE_CAPS: Record<TenantMemberRole, Set<Capability>>`, helpers `hasCapability`, `requireCapability(userId, tenantId, cap)`. Capabilities clave: `product.write`, `pos.sell`, `pos.see_cost`, `cash.open`, `cash.close`, `order.cancel`, `order.return`, `purchase.write`, `purchase.receive`, `currency.set_rate`, `reports.financial`, `admin.override`.
-- [ ] **Aplicar `requireCapability`** en cada server action existente y nueva. UI también lee la matrix para ocultar/deshabilitar botones.
-- [ ] **Server action `validateAdminCredential(email, password)`** — verifica via Better Auth sin abrir sesión nueva, devuelve userId si tiene rol >= manager (para PIN override de brindis).
+### M7 ✅ Completados (parte)
 
-### Catálogo masivo (M7)
+- [x] **Reportes** — `/admin/reportes` con 5 tabs (Ventas/Productos/Inventario/Caja/Compras) + Recharts, filtros de rango + granularidad en URL, KPIs por tab, tablas de detalle con links cruzados (commits `d8a4b35`, `7b38146`).
+
+### M7 🔴 Pendientes
+
+#### Catálogo masivo
 
 - [ ] **Importar productos CSV** — `apps/web/app/(admin)/admin/productos/import/page.tsx` con upload + preview + apply. Soporta producto+variantes en una hoja (filas con mismo SKU base).
 - [ ] **CRUD categorías UI completo** — `/admin/categorias` con crear/editar/borrar/jerarquía padre-hijo.
@@ -33,66 +36,17 @@ Las prioridades son orientativas; el orden real lo decide el usuario.
 - [ ] **Editor branding tenant** — `/admin/configuracion/tienda` con form para nombre legal, dirección, logo (R2), datos para recibo (RUC, teléfono, email).
 - [ ] **Borrar imagen de producto** — botón en `ImageUploader` (server action + delete R2).
 - [ ] **Reordenar imágenes** — drag-and-drop para cambiar `position`.
+- [ ] **Filtros + paginación en `/admin/productos`** — la lista actual carga todos los productos del tenant. Con 500+ se va a sentir; agregar filtros (categoría, estado, búsqueda) + paginación 25/50/100.
 
-### Customer (M2)
-
-- [ ] **Tabla `customer`** (tenantId, name, document, phone, email, notes) con índices por document/phone.
-- [ ] **Server actions** `customer.search(query)` (autocomplete por doc/teléfono/nombre, limit 10), `customer.create`, `customer.update`.
-- [ ] **`order.customerId`** FK opcional. `order.customerName/Email/Phone` siguen como snapshot al momento de la venta.
-
-### POS + Caja (M3, M4, M5)
-
-- [ ] **Layout `/admin/pos`** full-screen sin sidebar. Header con cashier name + sesión activa + botón cerrar caja (F9).
-- [ ] **Zustand store `usePosCart`** con persist `localStorage` (key tenant-aware), state: lines, customerId, customerSnapshot, generalDiscount, surcharge, primaryCurrency override.
-- [ ] **Wrappers shadcn:** `Dialog`, `Tabs`, `RadioGroup`, `Tooltip`, `Switch` en `apps/web/components/ui/`.
-- [ ] **Diálogo búsqueda** — input con autocomplete debounced (150ms), grid de cards con foto/SKU/precio/stock, navegación ↑↓, Enter selecciona, Esc cierra. Touch: tap selecciona. Lector USB: detecta scan por velocidad de input (8+ chars en <50ms + Enter).
-- [ ] **Diálogo variantes** — grid compacto con foto/atributos/stock/precio si producto tiene variantes.
-- [ ] **Diálogo detalle de línea** — qty, descuento línea (% o $), precio editable solo manager+, marcar brindis (checkbox simple si producto.isComplimentary; sino botón que abre Diálogo override admin).
-- [ ] **Diálogo override admin** — email + password de admin/owner/manager; valida via `validateAdminCredential`; audita en `order_line.complimentary_authorized_by`.
-- [ ] **Diálogo cobro** — tabla multi-fila (kind: payment/change/discount/surcharge × method × currency × amount × cotización × amountInPrimary). Validación: Diff total cobrado vs total venta = 0 para confirmar. Cotización autocompleta del rate vigente (sellRate al cobrar) editable.
-- [ ] **Schema `pos_config` (1:1 tenant)** — enabled_currencies, pricing_display_currencies, payment_methods, search_show_images, show_cost_to_admin, strict_stock, ticket_prefix, ticket_correlative, receipt_header, receipt_footer.
-- [ ] **UI `/admin/configuracion/pos`** — tabs: Monedas y métodos / Pantalla / Recibo / Reset correlativo.
-- [ ] **Schemas caja** — `cash_session` (1 abierta por cashier), `cash_session_balance` (1 fila por moneda), `cash_count_detail` (filas por denominación con moment open/close), `cash_movement` (kind: sale_in/sale_return_out/sale_cancel_out/manual_in/manual_out), `cash_closure` (header), `cash_closure_metric` (filas con desgloses por method×currency).
-- [ ] **Diálogo apertura caja** — por moneda activa: monto declarado + botón "Abrir contador" → diálogo de conteo por denominación con subtotal por fila y diferencia vs declarado.
-- [ ] **Diálogo cierre caja** — `expected` calculado del session+movements; input contado físico con mismo diálogo de denominación; nota de cierre; genera `cash_closure` + `cash_closure_metric` row-based; pantalla resumen imprimible (ticket promedio, n° transacciones, diferencias por moneda).
-- [ ] **Server action `createPosOrder`** — transacción Drizzle: insert order (channel='pos', cashSessionId, ticket_correlative atómico), order_lines, stock_movements (kind='sale'), decrement stock, payment header (status='captured'), payment_detail rows, cash_movement rows (solo para métodos físicos), increment posConfig.ticket_correlative.
-- [ ] **Cambio temporal de moneda primary** para una venta específica (override en posCartStore + persistencia en `order.primary_currency_at_time`).
-- [ ] **Devolución desde POS** — solo de ventas con `cash_session_id` = sesión activa del cashier actual. UI: buscar venta por número, seleccionar líneas + qty, registra `stock_movement` kind='sale_return' linkeado al original + `cash_movement` kind='sale_return_out' si efectivo.
-
-### Compras + inventario (M6)
-
-- [ ] **Schemas** — `supplier`, `purchase_order` (status draft/placed/received/partially_received/cancelled, currency_code, exchange_rate_snapshot al recibir, total_in_primary), `purchase_order_line` (received_quantity / returned_quantity / cancelled_quantity, allocated_extras_in_currency, landed_unit_cost), `purchase_extra_cost` (description, amount, allocation_strategy: cost/equal/qty/manual default cost), `purchase_extra_cost_manual_split` (cuando strategy='manual'), `stock_movement` (kind: purchase / purchase_return / purchase_cancel / sale / sale_return / sale_cancel / adjustment, original_movement_id self FK), `product_variant_avg_cost` (cache denormalizado).
-- [ ] **CRUD `/admin/proveedores`** — listar, crear, editar, archivar.
-- [ ] **`/admin/compras`** — lista + crear PO + agregar líneas con variantes + agregar extras con estrategia mezclable + recibir total/parcial.
-- [ ] **Lógica de prorrateo** — al recibir PO: por cada extra cost calcular splits según strategy (cost: proporcional a `unitCost*qty`; equal: `1/n_lineas`; qty: `qty/total_qty`; manual: lookup en `purchase_extra_cost_manual_split`). Sumar splits por línea → `landed_unit_cost = unitCost + sum_extras/qty`. Convertir a primary con `exchange_rate_snapshot`. Insertar `stock_movement` kind='purchase'. Actualizar `product_variant_avg_cost` con weighted average (stock_previo × avg_previo + qty_nuevo × landed_unit_cost) / (stock_previo + qty_nuevo).
-- [ ] **Cancelación PO** — antes de recibir: solo cambia status. Después de recibir: requiere "purchase_cancel" movement que revierte stock.
-- [ ] **Devolución parcial PO** — UI permite seleccionar líneas + qty a devolver al proveedor; inserta `stock_movement` kind='purchase_return' con `original_movement_id` apuntando al `purchase` original.
-- [ ] **Vista `/admin/inventario`** — audit log de movimientos con filtros por variante/kind/fecha; valor de stock al avg_cost.
-
-### Cancelación / devolución de venta (M7 — admin)
-
-- [ ] **`/admin/pedidos/[id]`** botones "Cancelar venta completa" y "Registrar devolución parcial" (selector de líneas + qty).
-- [ ] **Lógica de impacto en caja** — si `cash_session_id` de la order original == sesión activa del cashier que está procesando: descontar de caja vía `cash_movement` kind='sale_return_out'/'sale_cancel_out'. Sino: ajuste contable, no toca caja, queda flagged.
-- [ ] **`order.status`** se setea a 'cancelled' (full) o se mantiene 'confirmed' con `order_line.returned_quantity > 0` (partial). `stock_movement` kind='sale_return' o 'sale_cancel' linkeado vía `original_movement_id`.
-
-### Email mínimo (M7 — Resend)
+#### Email mínimo (Resend)
 
 - [ ] **Resend integrado** — solo para invitaciones a equipo + reset password. Templates en `apps/web/lib/email/`.
 - [ ] **Invitaciones por email** — schema `tenant_invitation` (tenantId, email, role, token unique, expiresAt, acceptedAt, invitedBy). Server action `inviteByEmail`. Página `/accept-invite?token=xxx` que pide register/login y crea membership.
 - [ ] **Edit role de un miembro existente.**
 
-### Reportes mínimos (M7)
+#### Audit log básico
 
-- [ ] **`/admin/reportes`** con tabs (Recharts):
-  - Ventas: line/bar por día/semana/mes, KPIs (ventas brutas, netas, ticket promedio, n° tickets), filtros por canal/método/moneda
-  - Productos: top 20 por unidades + revenue + margen; stock bajo (`stock < 5`)
-  - Inventario: valor total al avg_cost, movimientos del período
-  - Caja: cierres del período, diferencias por sesión, ranking cashiers
-  - Compras: gastos por proveedor, costos extras prorrateados
-
-### Audit log básico
-
-- [ ] Tabla `audit_log` (tenantId, userId, action, resourceType, resourceId, metadataJson, createdAt). Loggear cambios sensibles: delete, role change, payment update, cancel order, override admin.
+- [ ] **Tabla `audit_log`** (tenantId, userId, action, resourceType, resourceId, metadataJson, createdAt). Loggear cambios sensibles: delete, role change, payment update, cancel order, override admin, archivar/eliminar producto, recibir PO, modificar precio venta vía PO receive, etc.
 
 ---
 
@@ -189,13 +143,34 @@ Las prioridades son orientativas; el orden real lo decide el usuario.
 
 ---
 
+## 🛠️ Deuda técnica descubierta
+
+- [ ] **Migrar `timestamp` → `timestamptz` en todo el schema** — 50 columnas usan `timestamp without time zone`. Combinado con `new Date()` desde JS (que postgres-js serializa como UTC ISO) y `defaultNow()` (que usa local DB time), causa drift de TZ silencioso. Hoy en `purchase-order` lo mitigamos pasando todo a `sql\`now()\``, pero la solución correcta es `timestamptz` (un ALTER COLUMN aditivo + verificación de comportamiento por módulo). Stack: Render Postgres + Node 20 en zona local PY (UTC-3). Riesgo alto si se ignora a largo plazo: cierres de caja, cancelaciones, reportes podrían cargar timestamps en TZ inconsistente.
+- [ ] **Productos huérfanos sin variantes** — Antes del fix de `isUniqueViolation` (commit `ec9132d`), si `ensureDefaultVariantInternal` fallaba por SKU colisión, el producto quedaba creado pero sin variante Default. Hoy se podría agregar una tarea de cleanup que detecte `product` sin `productVariant.productId = product.id` y lo borre o repare. Hay 1–2 productos así en la DB demo.
+- [ ] **`new Date()` en otras actions** — 21 lugares fuera de `purchase-order.ts` siguen usando `new Date()` para insertar timestamps. Mientras `timestamptz` no se aplique, conviene replicar el patrón `sql\`now()\`` también en `order.ts`, `pos-order.ts`, `cash-session.ts`, etc. (`grep -rn "new Date()" apps/web/lib/actions/`).
+- [ ] **Variantes que aparecen en buscadores sin filtro Default** — `purchase-search.ts` filtra "Default cuando hay siblings con atributos" via `filterOutDummyDefaults`. El mismo concepto debería aplicarse al storefront PDP y al POS search para evitar que el operador venda la Default placeholder cuando ya hay color/talle reales.
+- [ ] **Tema per-tenant** — Sistema `--tenant-primary` está cableado pero `--tenant-primary` siempre cae en `var(--primary)`. Hace falta el componente que lea `tenant.themeJson` (o similar) y reasigne CSS vars inline en el layout admin/storefront. Se difería a Fase 6 ("theme-manager") pero la infra ya está medio puesta.
+
 ## 🪲 Bugs conocidos
 
+- [ ] **next-themes inline `<script>` triggers React 19 warning** — `ThemeProvider` (next-themes 0.4.6) inyecta un `<script>` para anti-FOUC; React 19 emite "Encountered a script tag while rendering" en console. Es warning, no rompe. Workaround: ignorarlo, o upgradear next-themes cuando publiquen fix oficial, o reemplazar con implementación propia.
 - [x] **Hydration warning en root layout** — provenía de extensiones Chrome que inyectan atributos al `<html>`/`<body>` antes de hidratar. Fix: `suppressHydrationWarning` en `<html>` y `<body>` de `app/layout.tsx`.
+- [x] **Timestamps PO con TZ inconsistente** — `placedAt`/`receivedAt` con `new Date()` JS vs `createdAt` con `defaultNow()` causaban diff de 4hs en `purchase-order`. Fix puntual: pasar todo a `sql\`now()\`` (commit `ec9132d`). El problema sistémico (timestamp sin TZ) sigue listado arriba en Deuda técnica.
 
 ---
 
 ## ✅ Completados (changelog informal)
+
+### 2026-05-11 — Sesión variantes + financiero + compras
+
+- [x] **Variantes color × talle estilo Shopify** — `product.gender` enum, `productVariant.{color,size,sizeKind}` como columnas dedicadas (reemplaza JSONB attributes), unique `(productId, color, size)`. `bulkCreateVariantsByMatrix` genera N×M con overrides + exclude. `MatrixVariantDialog` con auto-commit + toggle adulto/infantil. `VariantForm` con filtros + paginación + archive por fila. `setVariantActive` soft delete. Auto-creación de variante "Default" en `createProduct`. Filtrado en POS + storefront + addToCart (commit `da26649`).
+- [x] **Financiero/Cajas + sidebar agrupado con RBAC** — `/admin/financiero/cajas` lista con KPIs + tabla 200 sesiones; `/admin/financiero/cajas/[id]` detalle 25/75 con KPIs (ventas, ganancia, descuentos, conteo por moneda) + filtros server-side + tabla ventas paginada. `SidebarNavGroup` agrupable con filtrado por capability. shadcn `dropdown-menu` agregado (commit `b4c1423`).
+- [x] **POS rework: header inline + método principal + variantes color/talle en cart + snapshots** — PosShell con header propio, `pos_config.primaryPaymentMethod`, deep-link `?close=1` desde financiero, `order_line.variant_snapshot` + `cart_line.variant_snapshot` (commit `7df39ab`).
+- [x] **Reportes shell + 5 tabs full** — `/admin/reportes` con tabs (Ventas, Productos, Inventario, Caja, Compras), Recharts (Area, Line, HorizontalBar), filtros de rango+granularidad en URL, RBAC por tab (`reports.financial` / `reports.operational`), KPIs + tablas detalle (commits `d8a4b35`, `7b38146`).
+- [x] **Compras refactor full** — Página dedicada `/admin/compras/nueva` (no más dialog). `VariantSearchPicker` agrupado por producto con expand/collapse + "+ Todas" + paginación "Cargar más" + filtro de variante Default + búsqueda con last/avg cost por variante. `NewSupplierDialog` y `NewProductInlineDialog` (con matriz reusada) inline. Líneas compactas 1-row con Tab/Enter cycling qty→costo→precio venta. Sell price persisted en `purchaseOrderLine.sellPriceInPrimary`, aplicado a `productVariant.price` al recibir. Margen % colored real-time. Auto-save localStorage (`usePoDraft`) + DB drafts (`saveDraftPurchaseOrder` + `promoteFromDraftId`). `LocalDraftBanner` en lista. `ProductDangerZone` con archive + hard-delete safety-checked. `archiveProduct` + `checkProductDeletable` + `deleteProduct`. Fix timestamps con `sql\`now()\`` en lugar de `new Date()`. `isUniqueViolation` unwrapea `err.cause` hasta 4 niveles. SKU prefix `slice(0,20)` (commit `ec9132d`).
+- [x] **Theme primary violet** — `--primary` y `--ring` cambiados a `oklch(0.55 0.22 290)` en light + `oklch(0.7 0.22 290)` en dark. Antes era neutral grayscale completo. Mantiene sistema `--tenant-primary` para per-tenant theming futuro (commit `6ca8ae4`).
+
+### Anteriores
 
 - [x] **R2 upload real** — `@aws-sdk/client-s3` + presigned URLs + ImageUploader. Bucket `frc-e-commerce-assets` configurado: API token Object R/W, r2.dev habilitado, CORS abierto para `localhost:3000`, `**.r2.dev` whitelisteado en `next.config.ts`. Verificado end-to-end (commit `9a928b2`).
 - [x] **Theme toggle (light/dark)** — next-themes + ThemeProvider + toggle en admin/storefront (commit `5f17217`).

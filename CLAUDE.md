@@ -131,9 +131,14 @@ Filtrado: `pnpm --filter @frc-e-commerce/web <script>`. Node 20 LTS obligatorio 
 - **Server Actions** primero, REST/Route Handler solo para webhooks externos (Stripe, Bancard) que necesitan raw body
 - **Drizzle**: imports SIN extension `.js` (proyecto usa `moduleResolution: bundler`)
 - **Multi-tenant**: cada query DEBE filtrar por `tenantId`. Test mental: ¿un tenant A puede ver datos de tenant B?
-- **Migraciones**: aditivas. Nunca `DROP`/`RENAME` columnas sin estrategia 2 versiones
+- **Migraciones**: aditivas. Nunca `DROP`/`RENAME` columnas sin estrategia 2 versiones. El proyecto usa **`pnpm db:push`** (no `db:migrate`/`db:generate`) — el folder `apps/web/drizzle/` quedó obsoleto del bootstrap inicial. Tras cambiar un schema en `packages/db/src/schema/`, correr `pnpm --filter @frc-e-commerce/web db:push` para aplicar
 - **PaymentHandler**: nuevo método de pago = archivo nuevo en `apps/web/lib/payments/<code>.ts` que implementa la interface
 - **shadcn**: copy-paste components en `apps/web/components/ui/`. Modificables sin perder soporte
+- **Timestamps**: el schema actual usa `timestamp without time zone`. Por consistencia y para evitar drift de TZ entre `defaultNow()` (server time) y JS `new Date()` (UTC ISO), usar **`sql\`now()\``** desde Drizzle en lugar de `new Date()` al setear timestamps. Issue conocido: ver Deuda técnica en TODO.md — eventualmente migrar a `timestamptz`
+- **Errores Postgres en catch**: `DrizzleQueryError` envuelve los errores; el `code` real está en `err.cause` (a veces anidado). Para detectar unique violations (`23505`), unwrappear via util como `isUniqueViolation` en `lib/actions/product.ts`
+- **Variantes**: cada producto auto-crea una variante "Default" (color=null, size=null) al crearse — garantiza que stock siempre vive en una variante. Los buscadores (PO, POS, storefront) deben filtrarla cuando el producto tiene siblings con atributos. Ver `filterOutDummyDefaults` en `purchase-search.ts`
+- **SKU de variantes**: el prefix se deriva de `slug.toUpperCase().slice(0, 20)` (no 12). Cambiarlo rompería SKUs existentes; si hay que ajustar, hacerlo controlado
+- **Drafts de PO**: tienen 2 capas — (1) localStorage debounced 500ms (`usePoDraft` hook, scope tenant+user) y (2) `purchase_order.status='draft'` en DB. Para crear "definitivo" desde un draft, pasar `promoteFromDraftId` a `createPurchaseOrder` — reemplaza líneas/extras manteniendo `poNumber`
 
 ## Plugins/Módulos del sistema (referencia)
 
@@ -144,17 +149,20 @@ Los conceptos quedan en `docs/plugins/*.md` desde la era Vendure como **referenc
 | Concepto | Estado | Ubicación |
 |---|---|---|
 | `tenant-management` | ✅ | `lib/actions/tenant.ts`, `app/(super)/super/tenants/` |
-| `currency-rate` | 🔴 MVP M1 | `packages/db/schema/currency.ts`, `lib/actions/currency.ts`, `app/(admin)/admin/configuracion/monedas/` |
-| `permissions/RBAC` | 🔴 MVP M1 | `lib/auth/permissions.ts` (capability matrix) |
-| `customer` | 🔴 MVP M2 | `packages/db/schema/customer.ts`, `lib/actions/customer.ts` |
-| `pos-online` | 🔴 MVP M3-M4 | `app/(admin)/admin/pos/`, lector USB-HID-as-keyboard (WebHID post-MVP) |
-| `caja` | 🔴 MVP M4-M5 | `packages/db/schema/cash.ts`, conteo físico por denominación, cierre row-based |
-| `pos-config` | 🔴 MVP M4 | `packages/db/schema/pos-config.ts`, `app/(admin)/admin/configuracion/pos/` |
-| `compras` | 🔴 MVP M6 | `app/(admin)/admin/compras/`, schemas inventory + prorrateo costos extras |
-| `cancelaciones-devoluciones` | 🔴 MVP M7 | extensiones order/order_line + stock_movement con `original_movement_id` |
-| `catalogo-masivo` | 🔴 MVP M7 | import CSV, bulk actions, CRUD categorías UI, branding tenant |
-| `reportes-basicos` | 🔴 MVP M7 | `app/(admin)/admin/reportes/`, Recharts |
-| `email-minimo` (Resend) | 🔴 MVP M7 | solo invitaciones equipo + reset password (templates de orden a Fase 2) |
+| `currency-rate` | ✅ M1 | `packages/db/schema/currency.ts`, `lib/actions/currency.ts`, `app/(admin)/admin/configuracion/monedas/` |
+| `permissions/RBAC` | ✅ M1 | `lib/auth/permissions.ts` (capability matrix + `hasCapability` + `requireSessionCapability`) |
+| `customer` | ✅ M2 | `packages/db/schema/customer.ts`, `lib/actions/customer.ts` |
+| `pos-online` | ✅ M3-M4 | `app/pos/`, `components/pos/PosShell.tsx`, header inline + ?close=1 deep-link |
+| `caja` | ✅ M4-M5 | `packages/db/schema/cash.ts`, conteo físico por denominación, cierre row-based |
+| `pos-config` | ✅ M4 | `packages/db/schema/pos-config.ts`, `app/(admin)/admin/configuracion/pos/`, `primaryPaymentMethod` |
+| `compras` | ✅ M6 | `app/(admin)/admin/compras/{,/nueva}`, `lib/actions/{purchase-order,purchase-search}.ts`. Página dedicada con drafts (DB + localStorage), variant picker agrupado, sell-price al recibir, margen colored. |
+| `financiero-cajas` | ✅ | `app/(admin)/admin/financiero/cajas/[id]/`, detalle por sesión con métricas + filtros + ventas paginadas |
+| `cancelaciones-devoluciones` | ✅ M7 | extensiones order/order_line + stock_movement con `original_movement_id` (commit `2c8b03b`) |
+| `variantes-shopify` | ✅ | `product.gender` enum + `productVariant.{color,size,sizeKind}` columnas dedicadas + matriz N×M + archive por variante |
+| `reportes-basicos` | ✅ M7 | `app/(admin)/admin/reportes/`, Recharts, 5 tabs (Ventas/Productos/Inventario/Caja/Compras) |
+| `catalogo-masivo` | 🔴 M7 | TODO: import CSV, bulk actions, CRUD categorías UI, branding tenant |
+| `email-minimo` (Resend) | 🔴 M7 | TODO: invitaciones equipo + reset password |
+| `audit-log` | 🔴 M7 | TODO: tabla audit_log + middleware en actions sensibles |
 | `payment-transferencia` | ✅ | `lib/payments/manual.ts` (canal web) |
 | `payment-contraentrega` | ✅ | `lib/payments/manual.ts` (canal web) |
 | `storefront-publico` | 🟡 Fase 2 | `app/(storefront)/*`, `/cuenta/pedidos/[id]` |
