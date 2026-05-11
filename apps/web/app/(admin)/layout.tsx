@@ -42,6 +42,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       .map(({ href, label }) => ({ href, label }))
   );
   const canSeeConfig = hasCapability(role, 'tenant.settings');
+  const canSeeReportes =
+    hasCapability(role, 'reports.financial') || hasCapability(role, 'reports.operational');
 
   return (
     <div className="flex min-h-screen">
@@ -66,6 +68,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </Link>
           {financieroItems.length > 0 && (
             <SidebarNavGroup label="Financiero" items={financieroItems} />
+          )}
+          {canSeeReportes && (
+            <Link href="/admin/reportes" className="rounded px-2 py-1.5 hover:bg-muted">
+              Reportes
+            </Link>
           )}
           {canSeeConfig && (
             <Link href="/admin/configuracion" className="rounded px-2 py-1.5 hover:bg-muted">
