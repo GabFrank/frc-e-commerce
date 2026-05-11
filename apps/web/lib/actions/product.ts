@@ -1,13 +1,17 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import {
   product,
   productVariant,
   productImage,
   category,
+  orderLine,
+  purchaseOrderLine,
+  cartLine,
+  stockMovement,
 } from '@frc-e-commerce/db/schema';
 import { requireTenantMembership } from '@/lib/auth/guards';
 import { requireTenantId } from '@/lib/tenant';
@@ -44,11 +48,23 @@ async function guardTenant() {
 }
 
 function isUniqueViolation(err: unknown, constraint?: string): boolean {
-  const e = err as { code?: string; constraint_name?: string; constraint?: string } | null;
-  if (!e || e.code !== '23505') return false;
-  if (!constraint) return true;
-  const name = e.constraint_name ?? e.constraint;
-  return typeof name === 'string' && name.includes(constraint);
+  // Drizzle envuelve los errores postgres en DrizzleQueryError; el código real
+  // vive en err.cause (a veces anidado dos niveles). Recorremos la cadena.
+  const candidates: unknown[] = [];
+  let current: unknown = err;
+  for (let i = 0; i < 4 && current; i += 1) {
+    candidates.push(current);
+    current = (current as { cause?: unknown }).cause;
+  }
+  for (const c of candidates) {
+    if (!c || typeof c !== 'object') continue;
+    const obj = c as { code?: string; constraint_name?: string; constraint?: string };
+    if (obj.code !== '23505') continue;
+    if (!constraint) return true;
+    const name = obj.constraint_name ?? obj.constraint;
+    if (typeof name === 'string' && name.includes(constraint)) return true;
+  }
+  return false;
 }
 
 function uniqueViolationMessage(err: unknown): string {
@@ -179,10 +195,10 @@ async function ensureDefaultVariantInternal(
     .limit(1);
   if (existing.length > 0) return;
 
-  const baseSku = `${slug.toUpperCase().slice(0, 12)}-DEFAULT`;
+  const baseSku = `${slug.toUpperCase().slice(0, 20)}-DEFAULT`;
   let sku = baseSku;
   let attempt = 0;
-  while (attempt < 10) {
+  while (attempt < 20) {
     try {
       await db.insert(productVariant).values({
         tenantId,
@@ -207,6 +223,9 @@ async function ensureDefaultVariantInternal(
       throw err;
     }
   }
+  throw new Error(
+    `No se pudo generar SKU único para variante default (probados ${attempt} candidatos a partir de ${baseSku})`
+  );
 }
 
 export async function updateProduct(
@@ -235,8 +254,8 @@ export async function updateProduct(
   }
 }
 
-/** Soft-delete: marks product as archived */
-export async function deleteProduct(id: string): Promise<Result> {
+/** Soft-delete: marks product as archived (sigue visible para historia, oculto de POS/storefront) */
+export async function archiveProduct(id: string): Promise<Result> {
   try {
     const tenantId = await guardTenant();
 
@@ -251,6 +270,114 @@ export async function deleteProduct(id: string): Promise<Result> {
     if (isRedirectError(err)) throw err;
     const msg = err instanceof Error ? err.message : 'Error inesperado';
     return { ok: false, error: msg };
+  }
+}
+
+export type ProductUsageBlockers = {
+  orderLines: number;
+  purchaseLines: number;
+  cartLines: number;
+  stockMovements: number;
+};
+
+/** Verifica si un producto se puede borrar definitivamente (sin referencias de uso). */
+export async function checkProductDeletable(
+  id: string
+): Promise<Result<{ deletable: boolean; usage: ProductUsageBlockers }>> {
+  try {
+    const tenantId = await guardTenant();
+
+    const variants = await db
+      .select({ id: productVariant.id })
+      .from(productVariant)
+      .innerJoin(product, eq(product.id, productVariant.productId))
+      .where(and(eq(productVariant.productId, id), eq(product.tenantId, tenantId)));
+
+    const variantIds = variants.map((v) => v.id);
+    if (variantIds.length === 0) {
+      return {
+        ok: true,
+        deletable: true,
+        usage: { orderLines: 0, purchaseLines: 0, cartLines: 0, stockMovements: 0 },
+      };
+    }
+
+    const [ol, pol, cl, sm] = await Promise.all([
+      db
+        .select({ n: sql<number>`count(*)`.mapWith(Number) })
+        .from(orderLine)
+        .where(inArray(orderLine.variantId, variantIds)),
+      db
+        .select({ n: sql<number>`count(*)`.mapWith(Number) })
+        .from(purchaseOrderLine)
+        .where(inArray(purchaseOrderLine.variantId, variantIds)),
+      db
+        .select({ n: sql<number>`count(*)`.mapWith(Number) })
+        .from(cartLine)
+        .where(inArray(cartLine.variantId, variantIds)),
+      db
+        .select({ n: sql<number>`count(*)`.mapWith(Number) })
+        .from(stockMovement)
+        .where(inArray(stockMovement.variantId, variantIds)),
+    ]);
+
+    const usage: ProductUsageBlockers = {
+      orderLines: ol[0]?.n ?? 0,
+      purchaseLines: pol[0]?.n ?? 0,
+      cartLines: cl[0]?.n ?? 0,
+      stockMovements: sm[0]?.n ?? 0,
+    };
+    const deletable =
+      usage.orderLines === 0 &&
+      usage.purchaseLines === 0 &&
+      usage.cartLines === 0 &&
+      usage.stockMovements === 0;
+
+    return { ok: true, deletable, usage };
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    return { ok: false, error: err instanceof Error ? err.message : 'Error inesperado' };
+  }
+}
+
+/** Hard delete del producto si no tiene referencias. Cascade a variantes/imágenes/avg_cost. */
+export async function deleteProduct(id: string): Promise<Result> {
+  try {
+    const tenantId = await guardTenant();
+
+    // Verifica que pertenezca al tenant
+    const [p] = await db
+      .select({ id: product.id, name: product.name })
+      .from(product)
+      .where(and(eq(product.id, id), eq(product.tenantId, tenantId)))
+      .limit(1);
+    if (!p) return { ok: false, error: 'Producto no encontrado' };
+
+    const check = await checkProductDeletable(id);
+    if (!check.ok) return { ok: false, error: check.error };
+    if (!check.deletable) {
+      const parts: string[] = [];
+      if (check.usage.orderLines > 0) parts.push(`${check.usage.orderLines} línea(s) de pedido`);
+      if (check.usage.purchaseLines > 0)
+        parts.push(`${check.usage.purchaseLines} línea(s) de orden de compra`);
+      if (check.usage.cartLines > 0) parts.push(`${check.usage.cartLines} línea(s) en carritos`);
+      if (check.usage.stockMovements > 0)
+        parts.push(`${check.usage.stockMovements} movimiento(s) de stock`);
+      return {
+        ok: false,
+        error: `No se puede eliminar: el producto aparece en ${parts.join(
+          ', '
+        )}. Archivá el producto en su lugar para ocultarlo del POS y la tienda.`,
+      };
+    }
+
+    await db.delete(product).where(and(eq(product.id, id), eq(product.tenantId, tenantId)));
+
+    revalidatePath('/admin/productos');
+    return { ok: true };
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    return { ok: false, error: err instanceof Error ? err.message : 'Error inesperado' };
   }
 }
 
@@ -290,7 +417,7 @@ export async function createProductVariant(
 /** Genera N×M variantes (colores × tallas) en una transacción. Skip silencioso de duplicados. */
 export async function bulkCreateVariantsByMatrix(
   input: BulkCreateVariantsInput
-): Promise<Result<{ created: number; skipped: number }>> {
+): Promise<Result<{ created: number; excluded: number; duplicatesSkipped: number }>> {
   try {
     const tenantId = await guardTenant();
     const parsed = bulkCreateVariantsSchema.safeParse(input);
@@ -313,7 +440,7 @@ export async function bulkCreateVariantsByMatrix(
 
     const colorList = colors.length > 0 ? colors : [null];
     const sizeList = sizes.length > 0 ? sizes : [null];
-    const prefix = (skuPrefix?.trim() || p.slug.toUpperCase().slice(0, 12)).replace(/\s+/g, '-');
+    const prefix = (skuPrefix?.trim() || p.slug.toUpperCase().slice(0, 20)).replace(/\s+/g, '-');
 
     // Indexa overrides por clave "color||size" para lookup O(1) en el loop.
     const overrideMap = new Map<string, { price?: number; stock?: number }>();
@@ -325,11 +452,13 @@ export async function bulkCreateVariantsByMatrix(
     );
 
     let created = 0;
-    let skipped = 0;
+    let excluded = 0;
+    let duplicatesSkipped = 0;
     for (const color of colorList) {
       for (const size of sizeList) {
         if (excludeSet.has(`${color ?? ''}||${size ?? ''}`)) {
-          skipped += 1;
+          // Exclusión explícita del usuario — no es un error ni un evento que reportar
+          excluded += 1;
           continue;
         }
         const skuSegments = [prefix];
@@ -363,7 +492,8 @@ export async function bulkCreateVariantsByMatrix(
             isUniqueViolation(err, 'uq_variant_product_color_size') ||
             isUniqueViolation(err, 'uq_variant_tenant_sku')
           ) {
-            skipped += 1;
+            // Skip por SKU duplicado — sí es algo que mostrar al usuario
+            duplicatesSkipped += 1;
             continue;
           }
           throw err;
@@ -372,7 +502,7 @@ export async function bulkCreateVariantsByMatrix(
     }
 
     revalidatePath(`/admin/productos/${productId}`);
-    return { ok: true, created, skipped };
+    return { ok: true, created, excluded, duplicatesSkipped };
   } catch (err) {
     if (isRedirectError(err)) throw err;
     return { ok: false, error: uniqueViolationMessage(err) };

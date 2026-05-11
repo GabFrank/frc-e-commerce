@@ -54,16 +54,22 @@ export async function upsertSupplier(input: z.infer<typeof upsertSchema>) {
       isActive: parsed.isActive,
       updatedAt: new Date(),
     };
+    let saved: Supplier | undefined;
     if (parsed.id) {
-      await db
+      const [row] = await db
         .update(supplier)
         .set(values)
-        .where(and(eq(supplier.id, parsed.id), eq(supplier.tenantId, tenantId)));
+        .where(and(eq(supplier.id, parsed.id), eq(supplier.tenantId, tenantId)))
+        .returning();
+      saved = row;
     } else {
-      await db.insert(supplier).values(values);
+      const [row] = await db.insert(supplier).values(values).returning();
+      saved = row;
     }
+    if (!saved) return { ok: false as const, error: 'No se pudo guardar el proveedor' };
     revalidatePath('/admin/proveedores');
-    return { ok: true as const };
+    revalidatePath('/admin/compras');
+    return { ok: true as const, supplier: saved };
   } catch (e) {
     return { ok: false as const, error: formatError(e) };
   }

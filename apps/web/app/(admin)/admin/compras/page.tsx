@@ -1,27 +1,20 @@
 import Link from 'next/link';
-import { eq, and } from 'drizzle-orm';
-import { db } from '@/lib/db';
-import { tenantCurrency, currency } from '@frc-e-commerce/db/schema';
-import { getCurrentTenant } from '@/lib/tenant';
 import { listPurchaseOrders } from '@/lib/actions/purchase-order';
 import { listSuppliers } from '@/lib/actions/supplier';
+import { getCurrentTenant } from '@/lib/tenant';
+import { requireSession } from '@/lib/auth/guards';
 import { ComprasClient } from '@/components/admin/compras/ComprasClient';
+import { LocalDraftBanner } from '@/components/admin/compras/LocalDraftBanner';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ComprasPage() {
   const tenant = await getCurrentTenant();
   if (!tenant) return null;
+  const session = await requireSession();
 
-  const [pos, suppliers, currencies] = await Promise.all([
-    listPurchaseOrders(),
-    listSuppliers(),
-    db
-      .select({ code: tenantCurrency.currencyCode, symbol: currency.symbol, name: currency.name })
-      .from(tenantCurrency)
-      .innerJoin(currency, eq(currency.code, tenantCurrency.currencyCode))
-      .where(and(eq(tenantCurrency.tenantId, tenant.id), eq(tenantCurrency.isActive, true))),
-  ]);
+  const [pos, suppliers] = await Promise.all([listPurchaseOrders(), listSuppliers()]);
+  const hasActiveSuppliers = suppliers.some((s) => s.isActive);
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -38,11 +31,9 @@ export default async function ComprasPage() {
         </Link>
       </div>
 
-      <ComprasClient
-        initial={pos}
-        suppliers={suppliers.filter((s) => s.isActive)}
-        currencies={currencies}
-      />
+      <LocalDraftBanner scopeKey={`${tenant.id}:${session.user.id}`} />
+
+      <ComprasClient initial={pos} hasActiveSuppliers={hasActiveSuppliers} />
     </div>
   );
 }

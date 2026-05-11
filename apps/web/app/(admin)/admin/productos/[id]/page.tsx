@@ -7,6 +7,7 @@ import { requireTenantId, getCurrentTenant } from '@/lib/tenant';
 import { ProductForm } from '@/components/admin/products/ProductForm';
 import { VariantForm } from '@/components/admin/products/VariantForm';
 import { ImageUploader } from '@/components/admin/products/ImageUploader';
+import { ProductDangerZone } from '@/components/admin/products/ProductDangerZone';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface Props {
@@ -94,6 +95,12 @@ export default async function EditProductPage({ params }: Props) {
           />
         </CardContent>
       </Card>
+
+      <ProductDangerZone
+        productId={id}
+        productName={productData.name}
+        productStatus={productData.status}
+      />
     </div>
   );
 }

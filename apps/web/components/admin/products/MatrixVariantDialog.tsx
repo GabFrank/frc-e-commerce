@@ -187,11 +187,26 @@ export function MatrixVariantDialog({
   };
 
   const handleConfirm = () => {
-    if (colors.length === 0 && sizes.length === 0) {
+    // Auto-commit del color pendiente en el input para no perderlo si el usuario olvidó Enter
+    const pending = colorInput.trim();
+    const colorsEffective =
+      pending && !colors.some((x) => x.toLowerCase() === pending.toLowerCase())
+        ? [...colors, pending]
+        : colors;
+    if (pending) {
+      setColors(colorsEffective);
+      setColorInput('');
+    }
+
+    if (colorsEffective.length === 0 && sizes.length === 0) {
       setError('Indicá al menos un color o un talle');
       return;
     }
-    if (totalCombinations <= 0) {
+    const totalEff =
+      Math.max(colorsEffective.length, 1) * Math.max(sizes.length, 1) -
+      (colorsEffective.length === 0 && sizes.length === 0 ? 1 : 0) -
+      validExclusions;
+    if (totalEff <= 0) {
       setError('Excluiste todas las combinaciones — no hay nada para crear');
       return;
     }
@@ -214,12 +229,12 @@ export function MatrixVariantDialog({
       : undefined;
 
     const excludePayload =
-      colors.length > 0 && sizes.length > 0 && excluded.size > 0
+      colorsEffective.length > 0 && sizes.length > 0 && excluded.size > 0
         ? Array.from(excluded).flatMap((key) => {
             const [c, s] = key.split('||');
             if (!c || !s) return [];
             // Sólo enviamos las exclusiones que pertenezcan a colores/talles actualmente seleccionados.
-            if (!colors.includes(c) || !sizes.includes(s)) return [];
+            if (!colorsEffective.includes(c) || !sizes.includes(s)) return [];
             return [{ color: c, size: s }];
           })
         : undefined;
@@ -227,7 +242,7 @@ export function MatrixVariantDialog({
     startTransition(async () => {
       const res = await bulkCreateVariantsByMatrix({
         productId,
-        colors,
+        colors: colorsEffective,
         sizes,
         sizeKind: sizes.length > 0 ? sizeKind : null,
         basePrice: Math.max(0, Math.floor(basePrice)),
@@ -239,6 +254,13 @@ export function MatrixVariantDialog({
       if (!res.ok) {
         setError(res.error);
         return;
+      }
+      // Solo avisamos cuando hubo SKUs duplicados (un evento inesperado para el usuario).
+      // Las exclusiones explícitas ya están reflejadas visualmente en la grilla.
+      if (res.duplicatesSkipped > 0) {
+        alert(
+          `Variantes creadas: ${res.created}. ${res.duplicatesSkipped} omitidas por SKU duplicado con variantes existentes en el catálogo.\nProbá un prefix SKU distinto si querés que esos combos se generen.`
+        );
       }
       reset();
       onClose();
@@ -305,6 +327,9 @@ export function MatrixVariantDialog({
                     e.preventDefault();
                     addColor(colorInput);
                   }
+                }}
+                onBlur={() => {
+                  if (colorInput.trim()) addColor(colorInput);
                 }}
                 disabled={pending}
               />

@@ -24,6 +24,10 @@ import {
   CapabilityDeniedError,
   requireSessionCapability,
 } from '@/lib/auth/permissions';
+import {
+  enrichVariantsForPurchase,
+  type PurchaseVariantOption,
+} from '@/lib/actions/purchase-search';
 
 function formatError(e: unknown): string {
   if (e instanceof CapabilityDeniedError) return 'No tenés permiso para esta acción';
@@ -81,31 +85,31 @@ export async function getPurchaseOrderDetail(id: string) {
 
 // ── Crear PO ───────────────────────────────────────────────────────────────────
 
+const lineSchema = z.object({
+  variantId: z.string().uuid(),
+  quantity: z.number().int().min(1),
+  unitCostInCurrency: z.number().int().min(0),
+  /** Nuevo precio de venta (en moneda primary). Si se setea, se aplica a productVariant.price al recibir. */
+  sellPriceInPrimary: z.number().int().nonnegative().optional(),
+});
+
+const extraSchema = z.object({
+  description: z.string().min(1),
+  amountInCurrency: z.number().int().min(0),
+  allocationStrategy: z.enum(['cost', 'equal', 'qty', 'manual']).default('cost'),
+  manualSplits: z
+    .array(z.object({ purchaseOrderLineIndex: z.number(), amountInCurrency: z.number() }))
+    .optional(),
+});
+
 const createSchema = z.object({
   supplierId: z.string().uuid(),
   currencyCode: z.string().min(2).max(10),
   notes: z.string().optional(),
-  lines: z
-    .array(
-      z.object({
-        variantId: z.string().uuid(),
-        quantity: z.number().int().min(1),
-        unitCostInCurrency: z.number().int().min(0),
-      })
-    )
-    .min(1),
-  extras: z
-    .array(
-      z.object({
-        description: z.string().min(1),
-        amountInCurrency: z.number().int().min(0),
-        allocationStrategy: z.enum(['cost', 'equal', 'qty', 'manual']).default('cost'),
-        manualSplits: z
-          .array(z.object({ purchaseOrderLineIndex: z.number(), amountInCurrency: z.number() }))
-          .optional(),
-      })
-    )
-    .default([]),
+  lines: z.array(lineSchema).min(1),
+  extras: z.array(extraSchema).default([]),
+  /** Si se pasa, "promueve" el borrador (status=draft → placed) en vez de crear nueva PO. */
+  promoteFromDraftId: z.string().uuid().optional(),
 });
 
 export async function createPurchaseOrder(input: z.infer<typeof createSchema>) {
@@ -121,69 +125,358 @@ export async function createPurchaseOrder(input: z.infer<typeof createSchema>) {
       );
       const extrasTotal = parsed.extras.reduce((acc, e) => acc + e.amountInCurrency, 0);
       const total = subtotal + extrasTotal;
-      const poNumber = `PO-${tenant.slug}-${Date.now().toString(36).toUpperCase()}`;
-      const [po] = await tx
-        .insert(purchaseOrder)
-        .values({
-          tenantId: tenant.id,
-          supplierId: parsed.supplierId,
-          poNumber,
-          status: 'placed',
-          currencyCode: parsed.currencyCode,
-          subtotalInCurrency: subtotal,
-          extrasTotalInCurrency: extrasTotal,
-          totalInCurrency: total,
-          placedAt: new Date(),
-          notes: parsed.notes,
-          createdBy: userId,
-        })
-        .returning({ id: purchaseOrder.id });
-      if (!po) throw new Error('No se pudo crear PO');
 
-      const insertedLines = [];
-      for (const l of parsed.lines) {
-        const [created] = await tx
-          .insert(purchaseOrderLine)
+      let poId: string;
+      let poNumber: string;
+
+      if (parsed.promoteFromDraftId) {
+        // Promote: valida que el draft exista y sea del tenant + status=draft
+        const [draft] = await tx
+          .select({ id: purchaseOrder.id, poNumber: purchaseOrder.poNumber, status: purchaseOrder.status })
+          .from(purchaseOrder)
+          .where(
+            and(
+              eq(purchaseOrder.id, parsed.promoteFromDraftId),
+              eq(purchaseOrder.tenantId, tenant.id)
+            )
+          )
+          .limit(1);
+        if (!draft) throw new Error('Borrador no encontrado');
+        if (draft.status !== 'draft')
+          throw new Error(`No se puede promover: el estado es "${draft.status}"`);
+
+        // Limpia líneas y extras existentes (manualSplits se borra en cascade)
+        await tx
+          .delete(purchaseOrderLine)
+          .where(eq(purchaseOrderLine.purchaseOrderId, draft.id));
+        await tx
+          .delete(purchaseExtraCost)
+          .where(eq(purchaseExtraCost.purchaseOrderId, draft.id));
+
+        await tx
+          .update(purchaseOrder)
+          .set({
+            supplierId: parsed.supplierId,
+            currencyCode: parsed.currencyCode,
+            notes: parsed.notes,
+            status: 'placed',
+            subtotalInCurrency: subtotal,
+            extrasTotalInCurrency: extrasTotal,
+            totalInCurrency: total,
+            placedAt: sql`now()`,
+            updatedAt: sql`now()`,
+          })
+          .where(eq(purchaseOrder.id, draft.id));
+
+        poId = draft.id;
+        poNumber = draft.poNumber;
+      } else {
+        poNumber = `PO-${tenant.slug}-${Date.now().toString(36).toUpperCase()}`;
+        const [po] = await tx
+          .insert(purchaseOrder)
           .values({
-            purchaseOrderId: po.id,
             tenantId: tenant.id,
-            variantId: l.variantId,
-            quantity: l.quantity,
-            unitCostInCurrency: l.unitCostInCurrency,
-            totalCostInCurrency: l.unitCostInCurrency * l.quantity,
+            supplierId: parsed.supplierId,
+            poNumber,
+            status: 'placed',
+            currencyCode: parsed.currencyCode,
+            subtotalInCurrency: subtotal,
+            extrasTotalInCurrency: extrasTotal,
+            totalInCurrency: total,
+            placedAt: sql`now()`,
+            notes: parsed.notes,
+            createdBy: userId,
           })
-          .returning({ id: purchaseOrderLine.id });
-        if (created) insertedLines.push(created.id);
+          .returning({ id: purchaseOrder.id });
+        if (!po) throw new Error('No se pudo crear PO');
+        poId = po.id;
       }
 
-      for (const e of parsed.extras) {
-        const [createdExtra] = await tx
-          .insert(purchaseExtraCost)
-          .values({
-            purchaseOrderId: po.id,
-            description: e.description,
-            amountInCurrency: e.amountInCurrency,
-            allocationStrategy: e.allocationStrategy,
-          })
-          .returning({ id: purchaseExtraCost.id });
-        if (e.allocationStrategy === 'manual' && e.manualSplits && createdExtra) {
-          for (const s of e.manualSplits) {
-            const lineId = insertedLines[s.purchaseOrderLineIndex];
-            if (!lineId) continue;
-            await tx.insert(purchaseExtraCostManualSplit).values({
-              extraCostId: createdExtra.id,
-              purchaseOrderLineId: lineId,
-              amountInCurrency: s.amountInCurrency,
-            });
-          }
-        }
-      }
-
-      return { id: po.id, poNumber };
+      await insertLinesAndExtras(tx, tenant.id, poId, parsed.lines, parsed.extras);
+      return { id: poId, poNumber };
     });
 
     revalidatePath('/admin/compras');
     return { ok: true as const, ...result };
+  } catch (e) {
+    return { ok: false as const, error: formatError(e) };
+  }
+}
+
+/** Helper compartido: inserta líneas + extras (con manual splits) en una PO existente. */
+async function insertLinesAndExtras(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  tenantId: string,
+  poId: string,
+  lines: z.infer<typeof lineSchema>[],
+  extras: z.infer<typeof extraSchema>[]
+): Promise<void> {
+  const insertedLines: string[] = [];
+  for (const l of lines) {
+    const [created] = await tx
+      .insert(purchaseOrderLine)
+      .values({
+        purchaseOrderId: poId,
+        tenantId,
+        variantId: l.variantId,
+        quantity: l.quantity,
+        unitCostInCurrency: l.unitCostInCurrency,
+        totalCostInCurrency: l.unitCostInCurrency * l.quantity,
+        sellPriceInPrimary: l.sellPriceInPrimary ?? null,
+      })
+      .returning({ id: purchaseOrderLine.id });
+    if (created) insertedLines.push(created.id);
+  }
+
+  for (const e of extras) {
+    const [createdExtra] = await tx
+      .insert(purchaseExtraCost)
+      .values({
+        purchaseOrderId: poId,
+        description: e.description,
+        amountInCurrency: e.amountInCurrency,
+        allocationStrategy: e.allocationStrategy,
+      })
+      .returning({ id: purchaseExtraCost.id });
+    if (e.allocationStrategy === 'manual' && e.manualSplits && createdExtra) {
+      for (const s of e.manualSplits) {
+        const lineId = insertedLines[s.purchaseOrderLineIndex];
+        if (!lineId) continue;
+        await tx.insert(purchaseExtraCostManualSplit).values({
+          extraCostId: createdExtra.id,
+          purchaseOrderLineId: lineId,
+          amountInCurrency: s.amountInCurrency,
+        });
+      }
+    }
+  }
+}
+
+// ── Borrador (status=draft) ────────────────────────────────────────────────────
+
+const saveDraftSchema = z.object({
+  /** Si se pasa, actualiza ese draft; sino crea uno nuevo. */
+  draftId: z.string().uuid().optional(),
+  supplierId: z.string().uuid().optional(),
+  currencyCode: z.string().min(2).max(10),
+  notes: z.string().optional(),
+  /** En draft las líneas pueden estar vacías; solo se valida shape de las que hay. */
+  lines: z.array(lineSchema).default([]),
+  extras: z.array(extraSchema).default([]),
+});
+
+/** Crea o actualiza un borrador (status='draft'). Sin movimientos de stock. */
+export async function saveDraftPurchaseOrder(input: z.infer<typeof saveDraftSchema>) {
+  try {
+    const tenant = await requireTenant();
+    const { userId } = await requireSessionCapability(tenant.id, 'purchase.write');
+    const parsed = saveDraftSchema.parse(input);
+
+    if (!parsed.supplierId) {
+      return { ok: false as const, error: 'Elegí un proveedor antes de guardar el borrador' };
+    }
+    const supplierId = parsed.supplierId;
+
+    const subtotal = parsed.lines.reduce(
+      (acc, l) => acc + l.unitCostInCurrency * l.quantity,
+      0
+    );
+    const extrasTotal = parsed.extras.reduce((acc, e) => acc + e.amountInCurrency, 0);
+    const total = subtotal + extrasTotal;
+
+    const result = await db.transaction(async (tx) => {
+      let poId: string;
+      let poNumber: string;
+
+      if (parsed.draftId) {
+        const [existing] = await tx
+          .select({ id: purchaseOrder.id, poNumber: purchaseOrder.poNumber, status: purchaseOrder.status })
+          .from(purchaseOrder)
+          .where(
+            and(
+              eq(purchaseOrder.id, parsed.draftId),
+              eq(purchaseOrder.tenantId, tenant.id)
+            )
+          )
+          .limit(1);
+        if (!existing) throw new Error('Borrador no encontrado');
+        if (existing.status !== 'draft')
+          throw new Error(`Solo se pueden editar borradores (estado actual: ${existing.status})`);
+
+        await tx
+          .delete(purchaseOrderLine)
+          .where(eq(purchaseOrderLine.purchaseOrderId, existing.id));
+        await tx
+          .delete(purchaseExtraCost)
+          .where(eq(purchaseExtraCost.purchaseOrderId, existing.id));
+
+        await tx
+          .update(purchaseOrder)
+          .set({
+            supplierId,
+            currencyCode: parsed.currencyCode,
+            notes: parsed.notes,
+            subtotalInCurrency: subtotal,
+            extrasTotalInCurrency: extrasTotal,
+            totalInCurrency: total,
+            updatedAt: sql`now()`,
+          })
+          .where(eq(purchaseOrder.id, existing.id));
+
+        poId = existing.id;
+        poNumber = existing.poNumber;
+      } else {
+        poNumber = `PO-${tenant.slug}-${Date.now().toString(36).toUpperCase()}`;
+        const [po] = await tx
+          .insert(purchaseOrder)
+          .values({
+            tenantId: tenant.id,
+            supplierId,
+            poNumber,
+            status: 'draft',
+            currencyCode: parsed.currencyCode,
+            subtotalInCurrency: subtotal,
+            extrasTotalInCurrency: extrasTotal,
+            totalInCurrency: total,
+            notes: parsed.notes,
+            createdBy: userId,
+          })
+          .returning({ id: purchaseOrder.id });
+        if (!po) throw new Error('No se pudo crear el borrador');
+        poId = po.id;
+      }
+
+      await insertLinesAndExtras(tx, tenant.id, poId, parsed.lines, parsed.extras);
+      return { id: poId, poNumber };
+    });
+
+    revalidatePath('/admin/compras');
+    return {
+      ok: true as const,
+      draftId: result.id,
+      poNumber: result.poNumber,
+    };
+  } catch (e) {
+    return { ok: false as const, error: formatError(e) };
+  }
+}
+
+export type DraftForEdit = {
+  id: string;
+  poNumber: string;
+  supplierId: string;
+  currencyCode: string;
+  notes: string | null;
+  lines: Array<{
+    id: string;
+    variant: PurchaseVariantOption;
+    quantity: number;
+    unitCost: number;
+    sellPrice: number | null;
+  }>;
+  extras: Array<{
+    id: string;
+    description: string;
+    amount: number;
+    strategy: 'cost' | 'equal' | 'qty' | 'manual';
+  }>;
+};
+
+/** Trae un draft con líneas enriquecidas para hidratar el form de edición. */
+export async function getDraftForEdit(
+  draftId: string
+): Promise<{ ok: true; draft: DraftForEdit } | { ok: false; error: string }> {
+  try {
+    const tenantId = await requireTenantId();
+    await requireSessionCapability(tenantId, 'purchase.write');
+    const [po] = await db
+      .select()
+      .from(purchaseOrder)
+      .where(and(eq(purchaseOrder.id, draftId), eq(purchaseOrder.tenantId, tenantId)))
+      .limit(1);
+    if (!po) return { ok: false, error: 'Borrador no encontrado' };
+    if (po.status !== 'draft')
+      return { ok: false, error: `No editable: estado actual "${po.status}"` };
+
+    const rawLines = await db
+      .select({
+        lineId: purchaseOrderLine.id,
+        variantId: purchaseOrderLine.variantId,
+        quantity: purchaseOrderLine.quantity,
+        unitCostInCurrency: purchaseOrderLine.unitCostInCurrency,
+        sellPriceInPrimary: purchaseOrderLine.sellPriceInPrimary,
+      })
+      .from(purchaseOrderLine)
+      .where(eq(purchaseOrderLine.purchaseOrderId, draftId));
+
+    const variantIds = rawLines.map((l) => l.variantId);
+    const enriched = await enrichVariantsForPurchase(tenantId, variantIds);
+    const variantById = new Map(enriched.results.map((v) => [v.variantId, v]));
+
+    const lines = rawLines
+      .map((l) => {
+        const v = variantById.get(l.variantId);
+        if (!v) return null;
+        return {
+          id: l.lineId,
+          variant: v,
+          quantity: l.quantity,
+          unitCost: Number(l.unitCostInCurrency),
+          sellPrice: l.sellPriceInPrimary != null ? Number(l.sellPriceInPrimary) : null,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+
+    const rawExtras = await db
+      .select({
+        id: purchaseExtraCost.id,
+        description: purchaseExtraCost.description,
+        amountInCurrency: purchaseExtraCost.amountInCurrency,
+        allocationStrategy: purchaseExtraCost.allocationStrategy,
+      })
+      .from(purchaseExtraCost)
+      .where(eq(purchaseExtraCost.purchaseOrderId, draftId));
+
+    const extras = rawExtras.map((e) => ({
+      id: e.id,
+      description: e.description,
+      amount: Number(e.amountInCurrency),
+      strategy: (e.allocationStrategy as DraftForEdit['extras'][number]['strategy']) ?? 'cost',
+    }));
+
+    return {
+      ok: true,
+      draft: {
+        id: po.id,
+        poNumber: po.poNumber,
+        supplierId: po.supplierId,
+        currencyCode: po.currencyCode,
+        notes: po.notes,
+        lines,
+        extras,
+      },
+    };
+  } catch (e) {
+    return { ok: false, error: formatError(e) };
+  }
+}
+
+/** Borra un borrador. Solo permite borrar draft (no placed/received). */
+export async function deleteDraftPurchaseOrder(draftId: string) {
+  try {
+    const tenantId = await requireTenantId();
+    await requireSessionCapability(tenantId, 'purchase.write');
+    const [existing] = await db
+      .select({ id: purchaseOrder.id, status: purchaseOrder.status })
+      .from(purchaseOrder)
+      .where(and(eq(purchaseOrder.id, draftId), eq(purchaseOrder.tenantId, tenantId)))
+      .limit(1);
+    if (!existing) return { ok: false as const, error: 'Borrador no encontrado' };
+    if (existing.status !== 'draft')
+      return { ok: false as const, error: `No se puede borrar: estado "${existing.status}"` };
+    await db.delete(purchaseOrder).where(eq(purchaseOrder.id, draftId));
+    revalidatePath('/admin/compras');
+    return { ok: true as const };
   } catch (e) {
     return { ok: false as const, error: formatError(e) };
   }
@@ -353,6 +646,14 @@ export async function receivePurchaseOrder(input: z.infer<typeof receiveSchema>)
           .set({ stock: sql`${productVariant.stock} + ${l.quantity}` })
           .where(eq(productVariant.id, l.variantId));
 
+        // Aplica nuevo precio de venta si la línea lo trae
+        if (l.sellPriceInPrimary != null && Number(l.sellPriceInPrimary) >= 0) {
+          await tx
+            .update(productVariant)
+            .set({ price: Number(l.sellPriceInPrimary) })
+            .where(eq(productVariant.id, l.variantId));
+        }
+
         // Update avg cost (weighted)
         const prev = avgByVariant.get(l.variantId) ?? { avg: 0, stockValue: 0 };
         const prevStock = stockMap.get(l.variantId) ?? 0;
@@ -386,10 +687,10 @@ export async function receivePurchaseOrder(input: z.infer<typeof receiveSchema>)
         .update(purchaseOrder)
         .set({
           status: 'received',
-          receivedAt: new Date(),
+          receivedAt: sql`now()`,
           exchangeRateSnapshot: rate.toString(),
           totalInPrimary: Math.round(Number(po.totalInCurrency) * rate),
-          updatedAt: new Date(),
+          updatedAt: sql`now()`,
         })
         .where(eq(purchaseOrder.id, po.id));
 

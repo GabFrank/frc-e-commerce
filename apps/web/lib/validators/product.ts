@@ -37,11 +37,12 @@ export const createProductSchema = z.object({
   status: z.enum(['draft', 'active', 'archived']).default('draft'),
   categoryId: optionalUuid,
   gender: z.enum(['masculino', 'femenino', 'unisex', 'infantil']).default('unisex'),
-  /** Price in lowest denomination (centavos / céntimos) */
+  /** Precio base en moneda primary (puede ser 0 — se define después en compra/variantes). */
   basePrice: z
     .number()
     .int('Debe ser un entero')
-    .positive('Debe ser mayor a 0'),
+    .nonnegative('No puede ser negativo')
+    .default(0),
   currency: z.string().min(1).max(10).default('PYG'),
   taxIncluded: z.boolean().default(false),
 });

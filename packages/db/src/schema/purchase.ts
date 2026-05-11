@@ -109,6 +109,9 @@ export const purchaseOrderLine = pgTable(
     receivedQuantity: integer('received_quantity').notNull().default(0),
     returnedQuantity: integer('returned_quantity').notNull().default(0),
     cancelledQuantity: integer('cancelled_quantity').notNull().default(0),
+    /** Nuevo precio de venta (en moneda primary del tenant) que se aplicará a
+     *  productVariant.price cuando esta línea se reciba. Null = no cambiar precio. */
+    sellPriceInPrimary: bigint('sell_price_in_primary', { mode: 'number' }),
   },
   (t) => ({
     poIdx: index('idx_po_line_po').on(t.purchaseOrderId),
