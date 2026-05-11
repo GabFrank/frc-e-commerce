@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json.schemastore.org/semantic-release.json",
+  "branches": [
+    "master",
+    { "name": "release/beta", "channel": "beta", "prerelease": "beta" },
+    { "name": "develop", "channel": "alpha", "prerelease": "alpha" }
+  ],
+  "plugins": [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "conventionalcommits",
+        "releaseRules": [
+          { "type": "refactor", "release": "patch" },
+          { "type": "perf", "release": "patch" },
+          { "type": "docs", "scope": "README", "release": "patch" },
+          { "type": "chore", "release": false },
+          { "type": "docs", "release": false },
+          { "type": "test", "release": false },
+          { "type": "ci", "release": false },
+          { "type": "build", "release": false },
+          { "type": "style", "release": false }
+        ]
+      }
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "conventionalcommits",
+        "presetConfig": {
+          "types": [
+            { "type": "feat", "section": "✨ Features" },
+            { "type": "fix", "section": "🐛 Bug Fixes" },
+            { "type": "perf", "section": "⚡ Performance" },
+            { "type": "refactor", "section": "♻️ Refactoring" },
+            { "type": "docs", "section": "📝 Docs", "hidden": false },
+            { "type": "chore", "section": "🧹 Chore", "hidden": true },
+            { "type": "test", "section": "✅ Tests", "hidden": true },
+            { "type": "ci", "section": "👷 CI", "hidden": true },
+            { "type": "build", "section": "📦 Build", "hidden": true },
+            { "type": "style", "section": "💄 Style", "hidden": true }
+          ]
+        }
+      }
+    ],
+    [
+      "@semantic-release/changelog",
+      { "changelogFile": "CHANGELOG.md", "changelogTitle": "# Changelog" }
+    ],
+    [
+      "@semantic-release/git",
+      {
+        "assets": ["CHANGELOG.md", "package.json"],
+        "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+      }
+    ],
+    "@semantic-release/github"
+  ]
+}

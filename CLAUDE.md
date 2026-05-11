@@ -89,14 +89,20 @@ docs/
 2. Nunca `git push --force` a esas ramas (excepto reset completo coordinado, deshabilitando ruleset temporalmente)
 3. Promoción `develop → release/beta → master`: **merge commit, NO squash**
 4. PRs de feature → squash o merge según preferencia (no afecta versionado)
-5. Conventional commits obligatorios:
+5. Conventional commits obligatorios — el versionado es **automático vía semantic-release** leyendo los commit messages:
    - `feat(modulo): descripcion` → minor
    - `fix(modulo): descripcion` → patch
+   - `perf(modulo): descripcion` → patch
+   - `refactor(modulo): descripcion` → patch
    - `feat!:` o footer `BREAKING CHANGE:` → major
-   - `chore`, `refactor`, `docs`, `test`, `ci`, `perf` → sin release
-6. Cada PR que cambia `apps/*` o `packages/*` debe incluir un changeset (`pnpm changeset`)
-7. Nunca skipear hooks (`--no-verify`)
-8. Nunca commitear secretos (`.env`, `*.pem`, `*.key`, tokens R2/Render/Stripe)
+   - `chore`, `docs`, `test`, `ci`, `build`, `style` → sin release
+6. **No hay changesets manuales** (se removió `@changesets/cli` el 2026-05-11). Cada commit con prefijo válido genera la release automáticamente cuando llega a una branch publicable.
+7. Canales de release según branch:
+   - Push a `develop` → tag `vX.Y.Z-alpha.N` + GitHub Release prerelease
+   - Push a `release/beta` → tag `vX.Y.Z-beta.N` + GitHub Release prerelease
+   - Push a `master` → tag `vX.Y.Z` (estable) + GitHub Release
+8. Nunca skipear hooks (`--no-verify`)
+9. Nunca commitear secretos (`.env`, `*.pem`, `*.key`, tokens R2/Render/Stripe)
 
 ## Comandos
 
@@ -110,7 +116,7 @@ pnpm typecheck
 pnpm db:generate      # drizzle-kit generate (después de cambiar schema)
 pnpm db:migrate       # aplica migraciones
 pnpm db:studio        # GUI Drizzle
-pnpm changeset        # crear changeset para release
+pnpm release:dry      # simular release (semantic-release dry-run local)
 pnpm format
 ```
 

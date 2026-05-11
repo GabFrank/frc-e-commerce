@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - master
+      - release/beta
+      - develop
 
 concurrency:
   group: release-${{ github.ref }}
@@ -11,18 +13,20 @@ concurrency:
 
 permissions:
   contents: write
+  issues: write
   pull-requests: write
   id-token: write
 
 jobs:
   release:
-    name: Changesets release
+    name: Semantic release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -41,12 +45,7 @@ jobs:
       - name: Build
         run: pnpm exec turbo run build
 
-      - name: Create Release PR or publish tags
-        uses: changesets/action@v1
-        with:
-          version: pnpm exec changeset version
-          publish: pnpm exec changeset tag
-          commit: "chore(release): version packages"
-          title: "chore(release): version packages"
+      - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm exec semantic-release
