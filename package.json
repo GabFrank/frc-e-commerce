@@ -2,7 +2,7 @@
   "name": "frc-e-commerce",
   "version": "0.0.0",
   "private": true,
-  "description": "FRC E-commerce SaaS — Vendure backend + Next.js storefront monorepo",
+  "description": "FRC E-commerce SaaS — Next.js 16 monolito multi-tenant",
   "license": "UNLICENSED",
   "packageManager": "pnpm@9.12.0",
   "engines": {
@@ -18,13 +18,21 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
-    "changeset": "changeset",
-    "version": "changeset version",
-    "release": "turbo run build --filter=...[origin/master] && changeset publish"
+    "db:push": "turbo run db:push",
+    "db:migrate": "turbo run db:migrate",
+    "db:generate": "turbo run db:generate",
+    "db:studio": "turbo run db:studio",
+    "release": "semantic-release",
+    "release:dry": "semantic-release --dry-run --no-ci"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.27.9",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^13.0.0",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^11.0.1",
+    "@semantic-release/release-notes-generator": "^14.0.1",
     "prettier": "^3.3.3",
+    "semantic-release": "^24.2.0",
     "turbo": "^2.2.3",
     "typescript": "^5.6.3"
   }
