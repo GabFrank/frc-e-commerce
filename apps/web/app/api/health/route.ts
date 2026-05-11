@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 
+// Forzar dynamic: este endpoint depende de DATABASE_URL en runtime y
+// no debe ejecutarse durante el build (CI no tiene DB accesible).
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   let dbStatus: 'ok' | 'error' = 'ok';
   let dbError: string | undefined;
