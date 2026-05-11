@@ -122,48 +122,57 @@ export function SearchDialog({ ctx, onClose, onPick }: Props) {
             </div>
           )}
           <div className="grid grid-cols-2 gap-2 p-2">
-            {results.map((r, i) => (
-              <button
-                key={r.productId}
-                onClick={() => onPick(r.productId, r.name, r.singleVariant)}
-                onMouseEnter={() => setSelectedIdx(i)}
-                className={`flex gap-3 rounded-md border p-2 text-left transition ${
-                  i === selectedIdx ? 'border-primary bg-accent' : 'hover:bg-muted'
-                }`}
-              >
-                {ctx.posConfig.searchShowImages && r.imageUrl ? (
-                  <Image
-                    src={r.imageUrl}
-                    alt={r.name}
-                    width={64}
-                    height={64}
-                    className="h-16 w-16 rounded object-cover"
-                  />
-                ) : (
-                  <div className="flex h-16 w-16 items-center justify-center rounded bg-muted text-muted-foreground">
-                    <Package className="h-6 w-6" />
+            {results.map((r, i) => {
+              const outOfStock = r.totalStock <= 0;
+              const priceDisplay = formatPriceDisplay(r);
+              return (
+                <button
+                  key={r.productId}
+                  onClick={() => onPick(r.productId, r.name, r.singleVariant)}
+                  onMouseEnter={() => setSelectedIdx(i)}
+                  className={`flex gap-3 rounded-md border p-2 text-left transition ${
+                    i === selectedIdx ? 'border-primary bg-accent' : 'hover:bg-muted'
+                  } ${outOfStock ? 'opacity-60' : ''}`}
+                >
+                  {ctx.posConfig.searchShowImages && r.imageUrl ? (
+                    <Image
+                      src={r.imageUrl}
+                      alt={r.name}
+                      width={64}
+                      height={64}
+                      className="h-16 w-16 rounded object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-16 w-16 items-center justify-center rounded bg-muted text-muted-foreground">
+                      <Package className="h-6 w-6" />
+                    </div>
+                  )}
+                  <div className="flex min-w-0 flex-1 flex-col justify-between text-sm">
+                    <div className="min-w-0">
+                      <div className="truncate font-medium leading-tight">{r.name}</div>
+                      {r.singleVariant ? (
+                        <div className="truncate text-xs text-muted-foreground">
+                          SKU: {r.singleVariant.sku} · stock: {r.singleVariant.stock}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-muted-foreground">
+                          {r.variantCount} {r.variantCount === 1 ? 'variante' : 'variantes'}
+                          {r.totalStock > 0 && ` · ${r.totalStock} en stock`}
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold">{priceDisplay}</span>
+                      {outOfStock && (
+                        <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-destructive">
+                          Sin stock
+                        </span>
+                      )}
+                    </div>
                   </div>
-                )}
-                <div className="flex flex-1 flex-col justify-between text-sm">
-                  <div>
-                    <div className="font-medium leading-tight">{r.name}</div>
-                    {r.singleVariant && (
-                      <div className="text-xs text-muted-foreground">
-                        SKU: {r.singleVariant.sku} · stock: {r.singleVariant.stock}
-                      </div>
-                    )}
-                    {!r.singleVariant && (
-                      <div className="text-xs text-muted-foreground">
-                        {r.variantCount} variantes
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-sm font-semibold">
-                    {(r.singleVariant?.price ?? r.basePrice).toLocaleString('es-PY')}
-                  </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         </div>
         <div className="text-xs text-muted-foreground">
@@ -172,4 +181,19 @@ export function SearchDialog({ ctx, onClose, onPick }: Props) {
       </DialogContent>
     </Dialog>
   );
+}
+
+function formatPriceDisplay(r: PosSearchResultProduct): string {
+  // Si hay una sola variante, usar su precio directamente
+  if (r.singleVariant) {
+    return r.singleVariant.price.toLocaleString('es-PY');
+  }
+  // Si hay variantes con precio, mostrar rango (o solo min si min==max)
+  if (r.priceMin !== null && r.priceMax !== null) {
+    if (r.priceMin === r.priceMax) return r.priceMin.toLocaleString('es-PY');
+    return `${r.priceMin.toLocaleString('es-PY')} – ${r.priceMax.toLocaleString('es-PY')}`;
+  }
+  // Fallback: basePrice del producto
+  if (r.basePrice > 0) return r.basePrice.toLocaleString('es-PY');
+  return '—';
 }
