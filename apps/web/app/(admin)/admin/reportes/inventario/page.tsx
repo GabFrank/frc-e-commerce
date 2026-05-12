@@ -17,6 +17,7 @@ import {
   getMovementsByKind,
   getRecentStockMovements,
 } from '../_lib/queries';
+import { formatNumber } from '@frc-e-commerce/shared-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,7 +65,7 @@ export default async function InventarioReportPage({
     getRecentStockMovements(tenant.id, range, 100),
   ]);
 
-  const fmt = (n: number) => n.toLocaleString('es-PY');
+  const fmt = (n: number) => formatNumber(n, 0);
 
   const inflowKinds = byKind.filter((k) => (KIND_SIGN[k.kind] ?? 1) > 0);
   const outflowKinds = byKind.filter((k) => (KIND_SIGN[k.kind] ?? 1) < 0);

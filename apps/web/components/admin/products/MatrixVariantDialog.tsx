@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { ChevronDown, ChevronRight, Minus, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
+import { getCurrencyDecimalPlaces } from '@frc-e-commerce/shared-utils';
 import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
@@ -21,6 +23,7 @@ import { ADULT_SIZES, KIDS_SIZES, type SizeKind } from '@/lib/clothing/sizes';
 type Props = {
   open: boolean;
   productId: string;
+  productCurrency: string;
   /** Catálogo derivado del género del producto — se usa como default del toggle Adulto/Infantil. */
   sizeCatalog: { kind: SizeKind; values: readonly string[] };
   knownColors: string[];
@@ -37,6 +40,7 @@ const SIZE_CATALOGS: Record<SizeKind, readonly string[]> = {
 export function MatrixVariantDialog({
   open,
   productId,
+  productCurrency,
   sizeCatalog,
   knownColors,
   onClose,
@@ -463,12 +467,11 @@ export function MatrixVariantDialog({
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="matrix-price">Precio base</Label>
-              <Input
+              <MoneyInput
                 id="matrix-price"
-                type="number"
-                min={0}
-                value={basePrice || ''}
-                onChange={(e) => setBasePrice(Number(e.target.value))}
+                value={basePrice || null}
+                onChange={(v) => setBasePrice(v ?? 0)}
+                decimalPlaces={getCurrencyDecimalPlaces(productCurrency)}
                 disabled={pending}
               />
             </div>
@@ -616,17 +619,16 @@ export function MatrixVariantDialog({
                                   >
                                     {size}
                                   </label>
-                                  <Input
-                                    type="number"
-                                    min={0}
-                                    placeholder={`Precio (${basePrice || 0})`}
-                                    value={ov?.price ?? ''}
-                                    disabled={!active || out || pending}
-                                    onChange={(e) =>
+                                  <MoneyInput
+                                    value={ov?.price ?? null}
+                                    onChange={(v) =>
                                       updateOverride(color, size, {
-                                        price: e.target.value === '' ? undefined : Number(e.target.value),
+                                        price: v ?? undefined,
                                       })
                                     }
+                                    decimalPlaces={getCurrencyDecimalPlaces(productCurrency)}
+                                    placeholder={`Precio (${basePrice || 0})`}
+                                    disabled={!active || out || pending}
                                     className="h-8 text-sm"
                                   />
                                   <Input

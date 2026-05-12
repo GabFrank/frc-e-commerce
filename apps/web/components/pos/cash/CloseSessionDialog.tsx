@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { formatAmount } from '@frc-e-commerce/shared-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -139,19 +140,19 @@ export function CloseSessionDialog({ open, cashSessionId, openCurrencies, ctx, o
                   <span className="text-right font-mono">{summary.header.totalTransactions}</span>
                   <span className="text-muted-foreground">Ticket promedio</span>
                   <span className="text-right font-mono">
-                    {Number(summary.header.avgTicketInPrimary).toLocaleString('es-PY')}
+                    {formatAmount(Number(summary.header.avgTicketInPrimary), ctx.primaryCurrency)}
                   </span>
                   <span className="text-muted-foreground">Ventas (primary)</span>
                   <span className="text-right font-mono">
-                    {Number(summary.header.totalSalesInPrimary).toLocaleString('es-PY')}
+                    {formatAmount(Number(summary.header.totalSalesInPrimary), ctx.primaryCurrency)}
                   </span>
                   <span className="text-muted-foreground">Devoluciones</span>
                   <span className="text-right font-mono">
-                    {Number(summary.header.totalReturnsInPrimary).toLocaleString('es-PY')}
+                    {formatAmount(Number(summary.header.totalReturnsInPrimary), ctx.primaryCurrency)}
                   </span>
                   <span className="text-muted-foreground">Cancelaciones</span>
                   <span className="text-right font-mono">
-                    {Number(summary.header.totalCancellationsInPrimary).toLocaleString('es-PY')}
+                    {formatAmount(Number(summary.header.totalCancellationsInPrimary), ctx.primaryCurrency)}
                   </span>
                 </div>
               </div>
@@ -172,13 +173,13 @@ export function CloseSessionDialog({ open, cashSessionId, openCurrencies, ctx, o
                       <tr key={b.id} className="border-t">
                         <td className="font-mono">{b.currencyCode}</td>
                         <td className="text-right font-mono">
-                          {Number(b.openingDeclared).toLocaleString('es-PY')}
+                          {formatAmount(Number(b.openingDeclared), b.currencyCode)}
                         </td>
                         <td className="text-right font-mono">
-                          {Number(b.expected ?? 0).toLocaleString('es-PY')}
+                          {formatAmount(Number(b.expected ?? 0), b.currencyCode)}
                         </td>
                         <td className="text-right font-mono">
-                          {Number(b.countedDeclared ?? 0).toLocaleString('es-PY')}
+                          {formatAmount(Number(b.countedDeclared ?? 0), b.currencyCode)}
                         </td>
                         <td
                           className={`text-right font-mono ${
@@ -188,7 +189,7 @@ export function CloseSessionDialog({ open, cashSessionId, openCurrencies, ctx, o
                           }`}
                         >
                           {Number(b.diff ?? 0) > 0 ? '+' : ''}
-                          {Number(b.diff ?? 0).toLocaleString('es-PY')}
+                          {formatAmount(Number(b.diff ?? 0), b.currencyCode)}
                         </td>
                       </tr>
                     ))}
@@ -207,7 +208,7 @@ export function CloseSessionDialog({ open, cashSessionId, openCurrencies, ctx, o
                             {m.paymentMethod} / {m.currencyCode}
                           </td>
                           <td className="text-right font-mono">
-                            {Number(m.valueNumeric ?? 0).toLocaleString('es-PY')}
+                            {formatAmount(Number(m.valueNumeric ?? 0), m.currencyCode ?? ctx.primaryCurrency)}
                           </td>
                         </tr>
                       ))}

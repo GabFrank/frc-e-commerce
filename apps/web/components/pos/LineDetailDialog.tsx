@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { Package, AlertTriangle, Gift } from 'lucide-react';
+import { formatAmount, getCurrencyDecimalPlaces } from '@frc-e-commerce/shared-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Dialog,
@@ -172,10 +174,10 @@ export function LineDetailDialog({ variant, ctx, onClose }: Props) {
               <span className="block mb-1 font-medium">
                 Precio unitario {!ctx.canEditPrice && <span className="text-xs text-muted-foreground">(solo lectura)</span>}
               </span>
-              <Input
-                type="number"
+              <MoneyInput
                 value={unitPrice}
-                onChange={(e) => setUnitPrice(Number(e.target.value))}
+                onChange={(v) => setUnitPrice(v ?? 0)}
+                decimalPlaces={getCurrencyDecimalPlaces(variant.currency)}
                 disabled={!ctx.canEditPrice}
               />
             </label>
@@ -198,12 +200,23 @@ export function LineDetailDialog({ variant, ctx, onClose }: Props) {
                 <RadioGroupItem value="amount" /> Monto
               </label>
             </RadioGroup>
-            {discountKind !== 'none' && (
+            {discountKind === 'pct' && (
               <Input
                 type="number"
-                placeholder={discountKind === 'pct' ? '10 (= 10%)' : '5.000'}
+                min={0}
+                max={100}
+                placeholder="10 (= 10%)"
                 value={discountValue || ''}
                 onChange={(e) => setDiscountValue(Number(e.target.value))}
+                className="mt-2"
+              />
+            )}
+            {discountKind === 'amount' && (
+              <MoneyInput
+                value={discountValue || null}
+                onChange={(v) => setDiscountValue(v ?? 0)}
+                decimalPlaces={getCurrencyDecimalPlaces(variant.currency)}
+                placeholder="5.000"
                 className="mt-2"
               />
             )}
@@ -240,7 +253,7 @@ export function LineDetailDialog({ variant, ctx, onClose }: Props) {
           <div className="flex items-center justify-between rounded-md border bg-muted/40 p-3">
             <span className="text-sm font-medium">Total línea</span>
             <span className="text-lg font-semibold">
-              {lineTotalPreview.toLocaleString('es-PY')}
+              {formatAmount(lineTotalPreview, variant.currency)}
             </span>
           </div>
 

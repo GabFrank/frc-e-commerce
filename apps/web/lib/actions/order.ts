@@ -2,7 +2,7 @@
 import { isRedirectError } from '@/lib/actions/_redirect-helper';
 
 import { revalidatePath } from 'next/cache';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, asc, desc, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import {
   cart,
@@ -10,6 +10,7 @@ import {
   order,
   orderLine,
   payment,
+  paymentDetail,
   type Order,
   type Payment,
 } from '@frc-e-commerce/db/schema';
@@ -289,9 +290,20 @@ export interface OrderDetail {
     cancelledQuantity: number;
   }>;
   payments: Payment[];
+  paymentDetails: Array<{
+    id: string;
+    paymentId: string;
+    kind: 'payment' | 'change' | 'discount' | 'surcharge';
+    paymentMethod: string | null;
+    currencyCode: string | null;
+    amount: number;
+    exchangeRateSnapshot: string | null;
+    amountInPrimary: number;
+    position: number;
+  }>;
 }
 
-/** Returns a single order with lines and payments, scoped to the current tenant. */
+/** Returns a single order with lines, payments y payment_details, scoped al tenant actual. */
 export async function getOrderDetail(orderId: string): Promise<OrderDetail | null> {
   const tenantId = await requireTenantId();
   await requireTenantMembership(tenantId);
@@ -309,5 +321,18 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
     db.select().from(payment).where(eq(payment.orderId, orderId)),
   ]);
 
-  return { order: o, lines, payments };
+  const paymentIds = payments.map((p) => p.id);
+  const paymentDetailsRaw = paymentIds.length
+    ? await db
+        .select()
+        .from(paymentDetail)
+        .where(inArray(paymentDetail.paymentId, paymentIds))
+        .orderBy(asc(paymentDetail.position))
+    : [];
+  const paymentDetails = paymentDetailsRaw.map((d) => ({
+    ...d,
+    kind: d.kind as 'payment' | 'change' | 'discount' | 'surcharge',
+  }));
+
+  return { order: o, lines, payments, paymentDetails };
 }

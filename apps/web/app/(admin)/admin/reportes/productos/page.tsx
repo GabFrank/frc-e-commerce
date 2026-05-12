@@ -19,6 +19,7 @@ import {
   getTopProducts,
   getLowStockVariants,
 } from '../_lib/queries';
+import { formatNumber } from '@frc-e-commerce/shared-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +49,7 @@ export default async function ProductosReportPage({
     getLowStockVariants(tenant.id, LOW_STOCK_THRESHOLD, 50),
   ]);
 
-  const fmt = (n: number) => n.toLocaleString('es-PY');
+  const fmt = (n: number) => formatNumber(n, 0);
 
   const topChartData = topProducts.slice(0, 10).map((p) => ({
     label: [p.productName, p.color, p.size].filter(Boolean).join(' · ').slice(0, 32),

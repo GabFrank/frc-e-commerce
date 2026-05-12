@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
@@ -114,15 +114,15 @@ export function OpenSessionDialog({
                           <span className="block mb-1 text-xs text-muted-foreground">
                             Monto declarado ({c.symbol})
                           </span>
-                          <Input
-                            type="number"
-                            value={s.declared || ''}
-                            onChange={(e) =>
+                          <MoneyInput
+                            value={s.declared || null}
+                            onChange={(v) =>
                               setByCurrency((b) => ({
                                 ...b,
-                                [c.code]: { ...s, declared: Number(e.target.value) || 0 },
+                                [c.code]: { ...s, declared: v ?? 0 },
                               }))
                             }
+                            decimalPlaces={c.decimalPlaces}
                           />
                         </label>
                         <Button

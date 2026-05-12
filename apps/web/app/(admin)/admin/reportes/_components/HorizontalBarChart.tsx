@@ -9,10 +9,11 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { formatNumber } from '@frc-e-commerce/shared-utils';
 
 type Point = { label: string; value: number };
 
-const fmt = (n: number) => n.toLocaleString('es-PY');
+const fmt = (n: number) => formatNumber(n, 0);
 
 export function HorizontalBarChart({
   data,

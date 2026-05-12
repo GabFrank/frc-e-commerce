@@ -74,6 +74,7 @@ export default async function EditProductPage({ params }: Props) {
       <VariantForm
         productId={id}
         productGender={productData.gender}
+        productCurrency={productData.currency}
         variants={variants}
         tenantSlug={tenant?.slug ?? 'tenant'}
         imagesByVariant={Object.fromEntries(variantImagesByVariant)}

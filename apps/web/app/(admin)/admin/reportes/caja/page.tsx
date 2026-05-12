@@ -13,6 +13,7 @@ import {
 import { KpiCard } from '../_components/KpiCard';
 import { DateRangeFilter } from '../_components/DateRangeFilter';
 import { parseRange, rangeLabel, toLocalInput } from '../_lib/date-range';
+import { formatNumber } from '@frc-e-commerce/shared-utils';
 import {
   getCashKpis,
   getCashierRanking,
@@ -45,7 +46,7 @@ export default async function CajaReportPage({
     getClosuresInRange(tenant.id, range, 50),
   ]);
 
-  const fmt = (n: number) => n.toLocaleString('es-PY');
+  const fmt = (n: number) => formatNumber(n, 0);
   const fmtDiff = (n: number) => `${n > 0 ? '+' : ''}${fmt(n)}`;
 
   return (

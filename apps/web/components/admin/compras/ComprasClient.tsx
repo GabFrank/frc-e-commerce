@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
+import { formatAmount } from '@frc-e-commerce/shared-utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -95,7 +96,7 @@ export function ComprasClient({
                         </span>
                       </td>
                       <td className="px-3 py-2 text-right font-mono">
-                        {Number(p.totalInCurrency).toLocaleString('es-PY')}
+                        {formatAmount(Number(p.totalInCurrency), p.currencyCode)}
                       </td>
                       <td className="px-3 py-2 text-xs">{p.currencyCode}</td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">

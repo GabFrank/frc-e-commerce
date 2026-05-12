@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { formatAmount } from '@frc-e-commerce/shared-utils';
 import { posSearchProducts, type PosSearchResultProduct, type PosVariantOption } from '@/lib/actions/pos-search';
 import type { PosTenantContext } from './PosShell';
 
@@ -184,16 +185,17 @@ export function SearchDialog({ ctx, onClose, onPick }: Props) {
 }
 
 function formatPriceDisplay(r: PosSearchResultProduct): string {
+  const c = r.currency;
   // Si hay una sola variante, usar su precio directamente
   if (r.singleVariant) {
-    return r.singleVariant.price.toLocaleString('es-PY');
+    return formatAmount(r.singleVariant.price, c);
   }
   // Si hay variantes con precio, mostrar rango (o solo min si min==max)
   if (r.priceMin !== null && r.priceMax !== null) {
-    if (r.priceMin === r.priceMax) return r.priceMin.toLocaleString('es-PY');
-    return `${r.priceMin.toLocaleString('es-PY')} – ${r.priceMax.toLocaleString('es-PY')}`;
+    if (r.priceMin === r.priceMax) return formatAmount(r.priceMin, c);
+    return `${formatAmount(r.priceMin, c)} – ${formatAmount(r.priceMax, c)}`;
   }
   // Fallback: basePrice del producto
-  if (r.basePrice > 0) return r.basePrice.toLocaleString('es-PY');
+  if (r.basePrice > 0) return formatAmount(r.basePrice, c);
   return '—';
 }

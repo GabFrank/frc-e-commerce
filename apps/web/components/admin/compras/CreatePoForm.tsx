@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Check, Package, Plus, RotateCcw, Trash2, UserPlus, X } from 'lucide-react';
+import { formatAmount, formatNumber, getCurrencyDecimalPlaces } from '@frc-e-commerce/shared-utils';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,7 +38,7 @@ const genId = () =>
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-const fmt = (n: number) => n.toLocaleString('es-PY');
+const fmt = (n: number) => formatNumber(n, 0);
 
 export function CreatePoForm({
   suppliers: initialSuppliers,
@@ -440,17 +442,16 @@ export function CreatePoForm({
                     placeholder="Descripción (flete, aduana, etc.)"
                     className="h-9 text-sm"
                   />
-                  <Input
-                    type="number"
-                    min={0}
-                    value={e.amount || ''}
-                    onChange={(ev) =>
+                  <MoneyInput
+                    value={e.amount || null}
+                    onChange={(v) =>
                       setExtras((prev) =>
                         prev.map((x) =>
-                          x.id === e.id ? { ...x, amount: Number(ev.target.value) || 0 } : x
+                          x.id === e.id ? { ...x, amount: v ?? 0 } : x
                         )
                       )
                     }
+                    decimalPlaces={getCurrencyDecimalPlaces(currencyCode)}
                     className="h-9 w-32 text-right text-sm"
                     placeholder="Monto"
                   />
@@ -503,15 +504,15 @@ export function CreatePoForm({
             <div className="rounded-md border bg-muted/40 p-3 text-sm">
               <div className="flex justify-between">
                 <span>Subtotal líneas</span>
-                <span className="font-mono">{fmt(subtotal)}</span>
+                <span className="font-mono">{formatAmount(subtotal, currencyCode)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Extras</span>
-                <span className="font-mono">{fmt(extrasTotal)}</span>
+                <span className="font-mono">{formatAmount(extrasTotal, currencyCode)}</span>
               </div>
               <div className="mt-2 flex justify-between border-t pt-2 text-base font-medium">
-                <span>Total ({currencyCode})</span>
-                <span className="font-mono">{fmt(total)}</span>
+                <span>Total</span>
+                <span className="font-mono">{formatAmount(total, currencyCode)}</span>
               </div>
             </div>
 
@@ -705,15 +706,12 @@ function LineRow({
       />
 
       <div className="flex shrink-0 flex-col items-stretch gap-0.5">
-        <Input
-          type="number"
-          min={0}
-          value={line.unitCost || ''}
-          onChange={(e) => onChange({ unitCost: Number(e.target.value) || 0 })}
-          onFocus={(e) => e.currentTarget.select()}
+        <MoneyInput
+          value={line.unitCost || null}
+          onChange={(v) => onChange({ unitCost: v ?? 0 })}
+          decimalPlaces={getCurrencyDecimalPlaces(currencyCode)}
           onKeyDown={handlePoInputKeyDown}
           data-po-input="cost"
-          aria-label={`Costo unitario en ${currencyCode}`}
           placeholder={`Costo ${currencyCode}`}
           className="h-8 w-28 text-right font-mono text-sm"
         />
@@ -779,56 +777,48 @@ function SellPriceCell({
 }) {
   const v = line.variant;
   const current = v.currentSellPrice;
-  // El input usa "" cuando sellPrice es null para distinguir "sin cambio" de "0"
-  const inputValue = line.sellPrice == null ? '' : String(line.sellPrice);
   const hasNewPrice = line.sellPrice != null && line.sellPrice !== current;
   const sameCurrency = currencyCode === primaryCurrencyCode;
 
   return (
     <div className="flex shrink-0 flex-col items-stretch gap-0.5">
-      <Input
-        type="number"
-        min={0}
-        value={inputValue}
-        onChange={(e) =>
-          onChange({
-            sellPrice: e.target.value === '' ? null : Number(e.target.value) || 0,
-          })
-        }
-        onFocus={(e) => e.currentTarget.select()}
+      <MoneyInput
+        value={line.sellPrice}
+        onChange={(v) => onChange({ sellPrice: v })}
+        decimalPlaces={getCurrencyDecimalPlaces(primaryCurrencyCode)}
         onKeyDown={handlePoInputKeyDown}
         data-po-input="sellPrice"
-        aria-label={`Precio de venta en ${primaryCurrencyCode}`}
         placeholder="(sin cambio)"
-        title={
-          sameCurrency
-            ? 'Si lo dejás vacío, el precio actual no se modifica al recibir.'
-            : `Precio en ${primaryCurrencyCode} — moneda primary del tenant.`
-        }
         className={`h-8 w-28 text-right font-mono text-sm ${
           hasNewPrice ? 'border-primary/60' : ''
         }`}
       />
-      {current > 0 && (
-        <div className="flex justify-end text-[10px] text-muted-foreground">
-          {hasNewPrice ? (
-            <span className="font-mono">
-              <span className="line-through opacity-60">{fmt(current)}</span>
-              <span className="mx-0.5">→</span>
-              <span className="font-semibold text-primary">{fmt(line.sellPrice!)}</span>
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={() => onChange({ sellPrice: current })}
-              title="Aplicar precio actual (lo hace explícito en la PO)"
-              className="rounded bg-muted/40 px-1 py-0 hover:bg-muted hover:text-primary"
-            >
-              actual: <span className="font-mono">{fmt(current)}</span>
-            </button>
-          )}
-        </div>
-      )}
+      <div className="text-[10px] text-muted-foreground" title={
+        sameCurrency
+          ? 'Si lo dejás vacío, el precio actual no se modifica al recibir.'
+          : `Precio en ${primaryCurrencyCode} — moneda primary del tenant.`
+      }>
+        {current > 0 ? (
+          <div className="flex justify-end">
+            {hasNewPrice ? (
+              <span className="font-mono">
+                <span className="line-through opacity-60">{fmt(current)}</span>
+                <span className="mx-0.5">→</span>
+                <span className="font-semibold text-primary">{fmt(line.sellPrice!)}</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onChange({ sellPrice: current })}
+                title="Aplicar precio actual (lo hace explícito en la PO)"
+                className="rounded bg-muted/40 px-1 py-0 hover:bg-muted hover:text-primary"
+              >
+                actual: <span className="font-mono">{fmt(current)}</span>
+              </button>
+            )}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -17,6 +17,7 @@ import {
   searchVariantsForPurchase,
   type PurchaseVariantOption,
 } from '@/lib/actions/purchase-search';
+import { formatAmount, formatNumber } from '@frc-e-commerce/shared-utils';
 
 type Props = {
   open: boolean;
@@ -30,7 +31,7 @@ type Props = {
 };
 
 const DEBOUNCE_MS = 200;
-const fmt = (n: number) => n.toLocaleString('es-PY');
+const fmt = (n: number) => formatNumber(n, 0);
 
 export function VariantSearchPicker({
   open,
@@ -422,7 +423,7 @@ export function VariantSearchPicker({
                                         <span>
                                           Último:{' '}
                                           <strong className="text-foreground">
-                                            {fmt(v.lastUnitCost.value)} {v.lastUnitCost.currencyCode}
+                                            {formatAmount(v.lastUnitCost.value, v.lastUnitCost.currencyCode)}
                                           </strong>
                                           {v.lastUnitCost.receivedAt && (
                                             <span className="text-muted-foreground/70">

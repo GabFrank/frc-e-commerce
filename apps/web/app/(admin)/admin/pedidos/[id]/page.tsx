@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { eq, inArray } from 'drizzle-orm';
-import { formatMoney } from '@frc-e-commerce/shared-utils';
+import { formatMoney, formatAmount, getCurrencyDecimalPlaces } from '@frc-e-commerce/shared-utils';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -47,6 +47,13 @@ function paymentStatusLabel(
   return map[status] ?? { variant: 'outline', label: status };
 }
 
+const KIND_LABELS: Record<'payment' | 'change' | 'discount' | 'surcharge', string> = {
+  payment: 'Pago',
+  change: 'Vuelto',
+  discount: 'Descuento',
+  surcharge: 'Aumento',
+};
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -57,7 +64,7 @@ export default async function PedidoDetailPage({ params }: PageProps) {
 
   if (!detail) notFound();
 
-  const { order: o, lines, payments } = detail;
+  const { order: o, lines, payments, paymentDetails } = detail;
   const primaryPayment = payments[0] ?? null;
   const currency = o.currency as CurrencyCode;
 
@@ -165,18 +172,32 @@ export default async function PedidoDetailPage({ params }: PageProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {lines.map((line) => (
-                <TableRow key={line.id}>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{line.variantId}</TableCell>
-                  <TableCell className="text-right">
-                    {formatMoney({ amount: line.unitPrice, currency })}
-                  </TableCell>
-                  <TableCell className="text-right">{line.quantity}</TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatMoney({ amount: line.totalPrice, currency })}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {lines.map((line) => {
+                const v = variantMap.get(line.variantId);
+                return (
+                  <TableRow key={line.id}>
+                    <TableCell>
+                      {v ? (
+                        <div className="space-y-0.5">
+                          <div className="font-medium">{v.name}</div>
+                          <div className="font-mono text-xs text-muted-foreground">{v.sku}</div>
+                        </div>
+                      ) : (
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {line.variantId}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatMoney({ amount: line.unitPrice, currency })}
+                    </TableCell>
+                    <TableCell className="text-right">{line.quantity}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatMoney({ amount: line.totalPrice, currency })}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -237,6 +258,54 @@ export default async function PedidoDetailPage({ params }: PageProps) {
                   <Badge variant={paymentBadge.variant}>{paymentBadge.label}</Badge>
                 )}
               </div>
+
+              {paymentDetails.length > 0 && (
+                <div className="mt-4 border-t pt-4">
+                  <div className="mb-2 text-xs font-medium text-muted-foreground">
+                    Desglose
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Método</TableHead>
+                        <TableHead>Moneda</TableHead>
+                        <TableHead className="text-right">Monto</TableHead>
+                        <TableHead className="text-right">Cotiz.</TableHead>
+                        <TableHead className="text-right">En {o.currency}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paymentDetails.map((d) => {
+                        const code = d.currencyCode ?? o.currency;
+                        const dp = getCurrencyDecimalPlaces(code);
+                        // payment_detail.amount está en unidades mínimas — convertimos a mayor para display.
+                        const majorAmount = d.amount / Math.pow(10, dp);
+                        const dpPrimary = getCurrencyDecimalPlaces(o.currency);
+                        const majorInPrimary = d.amountInPrimary / Math.pow(10, dpPrimary);
+                        return (
+                          <TableRow key={d.id}>
+                            <TableCell className="capitalize">{KIND_LABELS[d.kind]}</TableCell>
+                            <TableCell className="capitalize text-muted-foreground">
+                              {d.paymentMethod ?? '—'}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">{code}</TableCell>
+                            <TableCell className="text-right font-mono">
+                              {formatAmount(majorAmount, code)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-xs text-muted-foreground">
+                              {d.exchangeRateSnapshot ?? (code === o.currency ? '1' : '—')}
+                            </TableCell>
+                            <TableCell className="text-right font-mono">
+                              {formatAmount(majorInPrimary, o.currency)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

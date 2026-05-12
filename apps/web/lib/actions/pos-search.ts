@@ -15,6 +15,8 @@ export type PosSearchResultProduct = {
   productId: string;
   name: string;
   basePrice: number;
+  /** Moneda en la que están denominados basePrice/priceMin/priceMax y los precios de variantes. */
+  currency: string;
   imageUrl: string | null;
   variantCount: number;
   /** Stock sumado de las variantes reales (excluye Default-dummy si hay siblings). */
@@ -67,6 +69,7 @@ export async function posSearchProducts(input: z.infer<typeof searchSchema>): Pr
         id: product.id,
         name: product.name,
         basePrice: product.basePrice,
+        currency: product.currency,
       })
       .from(product)
       .where(
@@ -84,6 +87,7 @@ export async function posSearchProducts(input: z.infer<typeof searchSchema>): Pr
         id: product.id,
         name: product.name,
         basePrice: product.basePrice,
+        currency: product.currency,
       })
       .from(productVariant)
       .innerJoin(product, eq(productVariant.productId, product.id))
@@ -98,7 +102,7 @@ export async function posSearchProducts(input: z.infer<typeof searchSchema>): Pr
       .limit(parsed.limit);
 
     // Merge unique
-    const productMap = new Map<string, { id: string; name: string; basePrice: number }>();
+    const productMap = new Map<string, { id: string; name: string; basePrice: number; currency: string }>();
     for (const p of [...productsByName, ...productsByVariant]) productMap.set(p.id, p);
     const productIds = Array.from(productMap.keys());
     if (productIds.length === 0) return { ok: true, results: [] };
@@ -182,6 +186,7 @@ export async function posSearchProducts(input: z.infer<typeof searchSchema>): Pr
                 vList[0].attributes ?? {}
               ),
               price: vList[0].price,
+              currency: p.currency,
               stock: vList[0].stock,
               imageUrl: productImg,
             }
@@ -190,6 +195,7 @@ export async function posSearchProducts(input: z.infer<typeof searchSchema>): Pr
         productId: p.id,
         name: p.name,
         basePrice: p.basePrice,
+        currency: p.currency,
         imageUrl: productImg,
         variantCount: vList.length,
         totalStock,
@@ -218,6 +224,7 @@ export type PosVariantOption = {
   sizeKind: string | null;
   attributesLabel: string;
   price: number;
+  currency: string;
   stock: number;
   imageUrl: string | null;
 };
@@ -231,7 +238,7 @@ export async function getProductVariants(productId: string): Promise<{
     await requireSessionCapability(tenantId, 'pos.sell');
 
     const [p] = await db
-      .select({ id: product.id, name: product.name })
+      .select({ id: product.id, name: product.name, currency: product.currency })
       .from(product)
       .where(and(eq(product.id, productId), eq(product.tenantId, tenantId)))
       .limit(1);
@@ -293,6 +300,7 @@ export async function getProductVariants(productId: string): Promise<{
         sizeKind: v.sizeKind,
         attributesLabel: formatVariantLabel(v.color, v.size, v.attributes ?? {}),
         price: v.price,
+        currency: p.currency,
         stock: v.stock,
         imageUrl: imageByVariant.get(v.variantId) ?? defaultImg,
       })),

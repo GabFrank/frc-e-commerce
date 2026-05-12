@@ -20,6 +20,7 @@ import {
 } from '@frc-e-commerce/db/schema';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { CajaSalesFilters } from '@/components/admin/financiero/CajaSalesFilters';
+import { formatAmount, formatNumber } from '@frc-e-commerce/shared-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -377,11 +378,11 @@ export default async function CajaDetailPage({
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total vendido</span>
-              <span className="font-mono">{totalActive.toLocaleString('es-PY')}</span>
+              <span className="font-mono">{formatNumber(totalActive, 0)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Ticket promedio</span>
-              <span className="font-mono">{avgTicket.toLocaleString('es-PY')}</span>
+              <span className="font-mono">{formatNumber(avgTicket, 0)}</span>
             </div>
           </CardContent>
         </Card>
@@ -394,7 +395,7 @@ export default async function CajaDetailPage({
           <CardContent className="space-y-1 text-xs">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Costo</span>
-              <span className="font-mono">{totalCost.toLocaleString('es-PY')}</span>
+              <span className="font-mono">{formatNumber(totalCost, 0)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Ganancia</span>
@@ -403,7 +404,7 @@ export default async function CajaDetailPage({
                   profit > 0 ? 'text-emerald-700' : profit < 0 ? 'text-destructive' : ''
                 }`}
               >
-                {profit.toLocaleString('es-PY')}
+                {formatNumber(profit, 0)}
               </span>
             </div>
             <div className="flex justify-between">
@@ -420,12 +421,12 @@ export default async function CajaDetailPage({
           <CardContent className="space-y-1 text-xs">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Descuentos aplicados</span>
-              <span className="font-mono">{totalDiscount.toLocaleString('es-PY')}</span>
+              <span className="font-mono">{formatNumber(totalDiscount, 0)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Aumentos / redondeos</span>
               <span className="font-mono">
-                {(aggOrders?.sumSurchargeActive ?? 0).toLocaleString('es-PY')}
+                {formatNumber(aggOrders?.sumSurchargeActive ?? 0, 0)}
               </span>
             </div>
           </CardContent>
@@ -461,14 +462,14 @@ export default async function CajaDetailPage({
                   <tr key={b.id} className="border-t">
                     <td className="px-2 py-1 font-mono">{b.currencyCode}</td>
                     <td className="px-2 py-1 text-right font-mono">
-                      {Number(b.openingDeclared).toLocaleString('es-PY')}
+                      {formatAmount(Number(b.openingDeclared), b.currencyCode)}
                     </td>
                     <td className="px-2 py-1 text-right font-mono">
-                      {b.expected != null ? Number(b.expected).toLocaleString('es-PY') : '—'}
+                      {b.expected != null ? formatAmount(Number(b.expected), b.currencyCode) : '—'}
                     </td>
                     <td className="px-2 py-1 text-right font-mono">
                       {b.countedDeclared != null
-                        ? Number(b.countedDeclared).toLocaleString('es-PY')
+                        ? formatAmount(Number(b.countedDeclared), b.currencyCode)
                         : '—'}
                     </td>
                     <td
@@ -481,7 +482,7 @@ export default async function CajaDetailPage({
                       }`}
                     >
                       {b.diff != null
-                        ? `${Number(b.diff) > 0 ? '+' : ''}${Number(b.diff).toLocaleString('es-PY')}`
+                        ? `${Number(b.diff) > 0 ? '+' : ''}${formatAmount(Number(b.diff), b.currencyCode)}`
                         : '—'}
                     </td>
                   </tr>
@@ -508,7 +509,7 @@ export default async function CajaDetailPage({
                           {m.paymentMethod} / {m.currencyCode}
                         </td>
                         <td className="px-2 py-1 text-right font-mono">
-                          {Number(m.valueNumeric ?? 0).toLocaleString('es-PY')}
+                          {formatAmount(Number(m.valueNumeric ?? 0), m.currencyCode ?? 'PYG')}
                         </td>
                       </tr>
                     ))}
@@ -570,7 +571,7 @@ export default async function CajaDetailPage({
                       <td className="px-3 py-2">{o.customerName}</td>
                       <td className="px-3 py-2 text-right font-mono">{o.lineCount}</td>
                       <td className="px-3 py-2 text-right font-mono">
-                        {o.total.toLocaleString('es-PY')} {o.currency}
+                        {formatAmount(o.total, o.currency)}
                       </td>
                       <td className="px-3 py-2 text-xs">
                         {methods.length === 0 && <span className="text-muted-foreground">—</span>}

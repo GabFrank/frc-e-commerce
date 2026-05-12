@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Image from 'next/image';
 import { Loader2, Package } from 'lucide-react';
+import { formatAmount } from '@frc-e-commerce/shared-utils';
 import {
   Dialog,
   DialogContent,
@@ -194,7 +195,7 @@ export function VariantDialog({ productId, productName, onClose, onPick }: Props
                     SKU: {v.sku} · stock: {v.stock}
                   </div>
                   <div className="mt-1 font-semibold">
-                    {v.price.toLocaleString('es-PY')}
+                    {formatAmount(v.price, v.currency)}
                   </div>
                 </div>
               </button>
