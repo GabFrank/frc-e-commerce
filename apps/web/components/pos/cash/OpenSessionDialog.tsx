@@ -38,19 +38,27 @@ export function OpenSessionDialog({
     Object.fromEntries(
       ctx.currencies
         .filter((c) => ctx.posConfig.enabledCurrencies.includes(c.code))
-        .map((c) => [c.code, { enabled: c.isPrimary, declared: 0, detail: null }])
+        // Por default todas las monedas habilitadas en config quedan abiertas
+        // con declared=0. El cajero ajusta el monto si tiene fondo inicial en esa moneda.
+        .map((c) => [c.code, { enabled: true, declared: 0, detail: null }])
     )
   );
 
   const handleOpen = () => {
     setError(null);
+    // El UI tipea en unidades mayores (191,30 BRL); en DB se guarda en
+    // unidades mínimas (19130 centavos) — uniforme con cash_movement.
     const balances = Object.entries(byCurrency)
       .filter(([, s]) => s.enabled)
-      .map(([currencyCode, s]) => ({
-        currencyCode,
-        openingDeclared: s.declared,
-        denominations: s.detail ?? [],
-      }));
+      .map(([currencyCode, s]) => {
+        const cur = ctx.currencies.find((c) => c.code === currencyCode);
+        const dp = cur?.decimalPlaces ?? 0;
+        return {
+          currencyCode,
+          openingDeclared: Math.round(s.declared * Math.pow(10, dp)),
+          denominations: s.detail ?? [],
+        };
+      });
     if (balances.length === 0) {
       setError('Activá al menos una moneda');
       return;
@@ -166,19 +174,22 @@ export function OpenSessionDialog({
       {counterFor && (() => {
         const c = ctx.currencies.find((cc) => cc.code === counterFor)!;
         const s = byCurrency[counterFor]!;
+        const dp = c.decimalPlaces;
         return (
           <DenominationCounter
             open
             currencyCode={c.code}
             currencySymbol={c.symbol}
-            declaredAmount={s.declared}
+            // El counter trabaja en minor units (las denominaciones lo están),
+            // pero el state aquí está en major — convertimos en ambos sentidos.
+            declaredAmount={Math.round(s.declared * Math.pow(10, dp))}
             onClose={() => setCounterFor(null)}
             onConfirm={(t) => {
               setByCurrency((b) => ({
                 ...b,
                 [c.code]: {
                   ...s,
-                  declared: t.countedTotal,
+                  declared: t.countedTotal / Math.pow(10, dp),
                   detail: t.detail,
                 },
               }));

@@ -11,6 +11,8 @@ import {
   orderLine,
   payment,
   paymentDetail,
+  stockMovement,
+  cashMovement,
   type Order,
   type Payment,
 } from '@frc-e-commerce/db/schema';
@@ -301,6 +303,28 @@ export interface OrderDetail {
     amountInPrimary: number;
     position: number;
   }>;
+  /** Movimientos de stock de tipo reverso (sale_return, sale_cancel) generados sobre esta orden. */
+  reversalStockMovements: Array<{
+    id: string;
+    variantId: string;
+    kind: string;
+    quantity: number;
+    originalMovementId: string | null;
+    reason: string | null;
+    createdAt: Date;
+  }>;
+  /** Movimientos de caja de tipo reverso (sale_return_out, sale_cancel_out). */
+  reversalCashMovements: Array<{
+    id: string;
+    kind: string;
+    paymentMethod: string | null;
+    currencyCode: string | null;
+    amount: number;
+    amountInPrimary: number;
+    exchangeRateSnapshot: string | null;
+    reason: string | null;
+    createdAt: Date;
+  }>;
 }
 
 /** Returns a single order with lines, payments y payment_details, scoped al tenant actual. */
@@ -322,17 +346,66 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
   ]);
 
   const paymentIds = payments.map((p) => p.id);
-  const paymentDetailsRaw = paymentIds.length
-    ? await db
-        .select()
-        .from(paymentDetail)
-        .where(inArray(paymentDetail.paymentId, paymentIds))
-        .orderBy(asc(paymentDetail.position))
-    : [];
+  const [paymentDetailsRaw, allStockMovements, allCashMovements] = await Promise.all([
+    paymentIds.length
+      ? db
+          .select()
+          .from(paymentDetail)
+          .where(inArray(paymentDetail.paymentId, paymentIds))
+          .orderBy(asc(paymentDetail.position))
+      : Promise.resolve([] as never[]),
+    db
+      .select({
+        id: stockMovement.id,
+        variantId: stockMovement.variantId,
+        kind: stockMovement.kind,
+        quantity: stockMovement.quantity,
+        originalMovementId: stockMovement.originalMovementId,
+        reason: stockMovement.reason,
+        createdAt: stockMovement.createdAt,
+      })
+      .from(stockMovement)
+      .where(eq(stockMovement.orderId, orderId))
+      .orderBy(asc(stockMovement.createdAt)),
+    db
+      .select({
+        id: cashMovement.id,
+        kind: cashMovement.kind,
+        paymentMethod: cashMovement.paymentMethod,
+        currencyCode: cashMovement.currencyCode,
+        amount: cashMovement.amount,
+        amountInPrimary: cashMovement.amountInPrimary,
+        exchangeRateSnapshot: cashMovement.exchangeRateSnapshot,
+        reason: cashMovement.reason,
+        createdAt: cashMovement.createdAt,
+      })
+      .from(cashMovement)
+      .where(eq(cashMovement.orderId, orderId))
+      .orderBy(asc(cashMovement.createdAt)),
+  ]);
+
   const paymentDetails = paymentDetailsRaw.map((d) => ({
     ...d,
     kind: d.kind as 'payment' | 'change' | 'discount' | 'surcharge',
   }));
 
-  return { order: o, lines, payments, paymentDetails };
+  // Filtramos solo los reverses: las entradas iniciales (sale, sale_in) ya están
+  // representadas vía order_line y payment_detail.
+  const REVERSAL_STOCK_KINDS = new Set(['sale_return', 'sale_cancel']);
+  const REVERSAL_CASH_KINDS = new Set(['sale_return_out', 'sale_cancel_out']);
+  const reversalStockMovements = allStockMovements.filter((sm) =>
+    REVERSAL_STOCK_KINDS.has(sm.kind)
+  );
+  const reversalCashMovements = allCashMovements.filter((cm) =>
+    REVERSAL_CASH_KINDS.has(cm.kind)
+  );
+
+  return {
+    order: o,
+    lines,
+    payments,
+    paymentDetails,
+    reversalStockMovements,
+    reversalCashMovements,
+  };
 }

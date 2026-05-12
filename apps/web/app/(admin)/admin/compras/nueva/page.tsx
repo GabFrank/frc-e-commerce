@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { tenantCurrency, currency } from '@frc-e-commerce/db/schema';
+import { tenantCurrency, currency, posConfig } from '@frc-e-commerce/db/schema';
 import { getCurrentTenant } from '@/lib/tenant';
 import { requireSession, getMembership } from '@/lib/auth/guards';
 import { hasCapability } from '@/lib/auth/permissions';
@@ -29,7 +29,7 @@ export default async function NuevaCompraPage({
 
   const { draftId } = await searchParams;
 
-  const [suppliers, currencies, draftRes] = await Promise.all([
+  const [suppliers, currencies, draftRes, cfgRow] = await Promise.all([
     listSuppliers(),
     db
       .select({
@@ -42,7 +42,10 @@ export default async function NuevaCompraPage({
       .innerJoin(currency, eq(currency.code, tenantCurrency.currencyCode))
       .where(and(eq(tenantCurrency.tenantId, tenant.id), eq(tenantCurrency.isActive, true))),
     draftId ? getDraftForEdit(draftId) : Promise.resolve(null),
+    db.select({ marginFormula: posConfig.marginFormula }).from(posConfig).where(eq(posConfig.tenantId, tenant.id)).limit(1),
   ]);
+  const marginFormula: 'markup' | 'gross' =
+    cfgRow[0]?.marginFormula === 'gross' ? 'gross' : 'markup';
 
   if (draftId && (!draftRes || !draftRes.ok)) {
     notFound();
@@ -75,6 +78,7 @@ export default async function NuevaCompraPage({
         suppliers={activeSuppliers}
         currencies={currencyList}
         primaryCurrencyCode={primaryCurrencyCode}
+        marginFormula={marginFormula}
         draftScopeKey={`${tenant.id}:${session.user.id}`}
         initialDraft={initialDraft}
       />

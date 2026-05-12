@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { eq, and, desc, sql, asc, inArray } from 'drizzle-orm';
+import { eq, and, desc, sql, asc, inArray, ilike, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import {
@@ -28,6 +28,7 @@ import {
   enrichVariantsForPurchase,
   type PurchaseVariantOption,
 } from '@/lib/actions/purchase-search';
+import { getCurrencyDecimalPlaces } from '@frc-e-commerce/shared-utils';
 
 function formatError(e: unknown): string {
   if (e instanceof CapabilityDeniedError) return 'No tenés permiso para esta acción';
@@ -37,21 +38,80 @@ function formatError(e: unknown): string {
 
 // ── Lista ──────────────────────────────────────────────────────────────────────
 
-export async function listPurchaseOrders(): Promise<
-  Array<PurchaseOrder & { supplierName: string }>
-> {
+export type ListPurchaseOrdersFilters = {
+  q?: string;
+  status?: string;
+  supplierId?: string;
+  currencyCode?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export async function listPurchaseOrders(
+  filters: ListPurchaseOrdersFilters = {}
+): Promise<{
+  rows: Array<PurchaseOrder & { supplierName: string }>;
+  total: number;
+}> {
   const tenantId = await requireTenantId();
   await requireSessionCapability(tenantId, 'purchase.view');
-  const rows = await db
-    .select({
-      po: purchaseOrder,
-      supplierName: supplier.name,
-    })
+
+  const conditions = [eq(purchaseOrder.tenantId, tenantId)];
+  if (filters.q && filters.q.trim()) {
+    const term = `%${filters.q.trim()}%`;
+    conditions.push(
+      or(
+        ilike(purchaseOrder.poNumber, term),
+        ilike(supplier.name, term),
+        ilike(purchaseOrder.notes, term)
+      )!
+    );
+  }
+  if (filters.status && filters.status !== 'all') {
+    conditions.push(eq(purchaseOrder.status, filters.status as PurchaseOrder['status']));
+  }
+  if (filters.supplierId && filters.supplierId !== 'all') {
+    conditions.push(eq(purchaseOrder.supplierId, filters.supplierId));
+  }
+  if (filters.currencyCode && filters.currencyCode !== 'all') {
+    conditions.push(eq(purchaseOrder.currencyCode, filters.currencyCode));
+  }
+
+  const where = and(...conditions);
+  const pageSize = filters.pageSize && [25, 50, 100].includes(filters.pageSize) ? filters.pageSize : 25;
+  const page = Math.max(1, filters.page ?? 1);
+  const offset = (page - 1) * pageSize;
+
+  const [{ value: total }] = await db
+    .select({ value: sql<number>`count(*)::int` })
     .from(purchaseOrder)
     .innerJoin(supplier, eq(supplier.id, purchaseOrder.supplierId))
-    .where(eq(purchaseOrder.tenantId, tenantId))
-    .orderBy(desc(purchaseOrder.createdAt));
-  return rows.map((r) => ({ ...r.po, supplierName: r.supplierName }));
+    .where(where);
+
+  const rows = await db
+    .select({ po: purchaseOrder, supplierName: supplier.name })
+    .from(purchaseOrder)
+    .innerJoin(supplier, eq(supplier.id, purchaseOrder.supplierId))
+    .where(where)
+    .orderBy(desc(purchaseOrder.createdAt))
+    .limit(pageSize)
+    .offset(offset);
+
+  // DB guarda en minor units (centavos). Para display devolvemos major.
+  return {
+    rows: rows.map((r) => {
+      const dp = getCurrencyDecimalPlaces(r.po.currencyCode);
+      const factor = Math.pow(10, dp);
+      return {
+        ...r.po,
+        subtotalInCurrency: Number(r.po.subtotalInCurrency) / factor,
+        extrasTotalInCurrency: Number(r.po.extrasTotalInCurrency) / factor,
+        totalInCurrency: Number(r.po.totalInCurrency) / factor,
+        supplierName: r.supplierName,
+      };
+    }),
+    total,
+  };
 }
 
 export async function getPurchaseOrderDetail(id: string) {
@@ -76,26 +136,92 @@ export async function getPurchaseOrderDetail(id: string) {
     .select()
     .from(purchaseExtraCost)
     .where(eq(purchaseExtraCost.purchaseOrderId, id));
+  const movements = await db
+    .select({
+      id: stockMovement.id,
+      variantId: stockMovement.variantId,
+      kind: stockMovement.kind,
+      quantity: stockMovement.quantity,
+      unitCostSnapshot: stockMovement.unitCostSnapshot,
+      totalCostInPrimary: stockMovement.totalCostInPrimary,
+      originalMovementId: stockMovement.originalMovementId,
+      reason: stockMovement.reason,
+      createdAt: stockMovement.createdAt,
+    })
+    .from(stockMovement)
+    .where(eq(stockMovement.purchaseOrderId, id))
+    .orderBy(asc(stockMovement.createdAt));
+
+  // DB en minor units; devolvemos en major para que la UI use formatAmount directo.
+  const [primaryRow] = await db
+    .select({ code: tenantCurrency.currencyCode })
+    .from(tenantCurrency)
+    .where(and(eq(tenantCurrency.tenantId, tenantId), eq(tenantCurrency.isPrimary, true)))
+    .limit(1);
+  const primaryCurrency = primaryRow?.code ?? 'PYG';
+  const dpCurrency = getCurrencyDecimalPlaces(po.currencyCode);
+  const dpPrimary = getCurrencyDecimalPlaces(primaryCurrency);
+  const fromMinorCurrency = (x: number | string | null | undefined) =>
+    x == null ? 0 : Number(x) / Math.pow(10, dpCurrency);
+  const fromMinorPrimary = (x: number | string | null | undefined) =>
+    x == null ? 0 : Number(x) / Math.pow(10, dpPrimary);
+
   return {
-    po,
-    lines: lines.map((l) => ({ ...l.line, variantSku: l.variantSku, variantName: l.variantName })),
-    extras,
+    primaryCurrency,
+    po: {
+      ...po,
+      subtotalInCurrency: fromMinorCurrency(po.subtotalInCurrency),
+      extrasTotalInCurrency: fromMinorCurrency(po.extrasTotalInCurrency),
+      totalInCurrency: fromMinorCurrency(po.totalInCurrency),
+      totalInPrimary: po.totalInPrimary != null ? fromMinorPrimary(po.totalInPrimary) : null,
+    },
+    lines: lines.map((l) => ({
+      ...l.line,
+      unitCostInCurrency: fromMinorCurrency(l.line.unitCostInCurrency),
+      totalCostInCurrency: fromMinorCurrency(l.line.totalCostInCurrency),
+      allocatedExtrasInCurrency: fromMinorCurrency(l.line.allocatedExtrasInCurrency),
+      landedUnitCostInCurrency:
+        l.line.landedUnitCostInCurrency != null
+          ? fromMinorCurrency(l.line.landedUnitCostInCurrency)
+          : null,
+      landedUnitCostInPrimary:
+        l.line.landedUnitCostInPrimary != null
+          ? fromMinorPrimary(l.line.landedUnitCostInPrimary)
+          : null,
+      sellPriceInPrimary:
+        l.line.sellPriceInPrimary != null ? fromMinorPrimary(l.line.sellPriceInPrimary) : null,
+      variantSku: l.variantSku,
+      variantName: l.variantName,
+    })),
+    extras: extras.map((e) => ({
+      ...e,
+      amountInCurrency: fromMinorCurrency(e.amountInCurrency),
+    })),
+    movements: movements.map((m) => ({
+      ...m,
+      unitCostSnapshot:
+        m.unitCostSnapshot != null ? fromMinorPrimary(m.unitCostSnapshot) : null,
+      totalCostInPrimary:
+        m.totalCostInPrimary != null ? fromMinorPrimary(m.totalCostInPrimary) : null,
+    })),
   };
 }
 
 // ── Crear PO ───────────────────────────────────────────────────────────────────
 
+// El cliente envía costos/extras en unidades MAYORES (decimal, ej. R$ 87,50);
+// la action convierte a minor units (centavos) antes de persistir en bigint.
 const lineSchema = z.object({
   variantId: z.string().uuid(),
   quantity: z.number().int().min(1),
-  unitCostInCurrency: z.number().int().min(0),
-  /** Nuevo precio de venta (en moneda primary). Si se setea, se aplica a productVariant.price al recibir. */
-  sellPriceInPrimary: z.number().int().nonnegative().optional(),
+  unitCostInCurrency: z.number().min(0),
+  /** Nuevo precio de venta en mayor de moneda primary (ej. PYG 250.000). */
+  sellPriceInPrimary: z.number().nonnegative().optional(),
 });
 
 const extraSchema = z.object({
   description: z.string().min(1),
-  amountInCurrency: z.number().int().min(0),
+  amountInCurrency: z.number().min(0),
   allocationStrategy: z.enum(['cost', 'equal', 'qty', 'manual']).default('cost'),
   manualSplits: z
     .array(z.object({ purchaseOrderLineIndex: z.number(), amountInCurrency: z.number() }))
@@ -118,12 +244,23 @@ export async function createPurchaseOrder(input: z.infer<typeof createSchema>) {
     const { userId } = await requireSessionCapability(tenant.id, 'purchase.write');
     const parsed = createSchema.parse(input);
 
+    const [primaryRow] = await db
+      .select({ code: tenantCurrency.currencyCode })
+      .from(tenantCurrency)
+      .where(and(eq(tenantCurrency.tenantId, tenant.id), eq(tenantCurrency.isPrimary, true)))
+      .limit(1);
+    const primaryCurrencyCode = primaryRow?.code ?? 'PYG';
+
     const result = await db.transaction(async (tx) => {
+      // Subtotal/extras/total se calculan en MINOR units (centavos) para guardar
+      // como bigint sin pérdida de precisión. Los inputs son mayor; los convertimos.
+      const dpCurrency = getCurrencyDecimalPlaces(parsed.currencyCode);
+      const toMinor = (x: number) => Math.round(x * Math.pow(10, dpCurrency));
       const subtotal = parsed.lines.reduce(
-        (acc, l) => acc + l.unitCostInCurrency * l.quantity,
+        (acc, l) => acc + toMinor(l.unitCostInCurrency) * l.quantity,
         0
       );
-      const extrasTotal = parsed.extras.reduce((acc, e) => acc + e.amountInCurrency, 0);
+      const extrasTotal = parsed.extras.reduce((acc, e) => acc + toMinor(e.amountInCurrency), 0);
       const total = subtotal + extrasTotal;
 
       let poId: string;
@@ -192,7 +329,15 @@ export async function createPurchaseOrder(input: z.infer<typeof createSchema>) {
         poId = po.id;
       }
 
-      await insertLinesAndExtras(tx, tenant.id, poId, parsed.lines, parsed.extras);
+      await insertLinesAndExtras(
+        tx,
+        tenant.id,
+        poId,
+        parsed.currencyCode,
+        primaryCurrencyCode,
+        parsed.lines,
+        parsed.extras
+      );
       return { id: poId, poNumber };
     });
 
@@ -203,16 +348,27 @@ export async function createPurchaseOrder(input: z.infer<typeof createSchema>) {
   }
 }
 
-/** Helper compartido: inserta líneas + extras (con manual splits) en una PO existente. */
+/**
+ * Helper compartido: inserta líneas + extras (con manual splits) en una PO existente.
+ * Convierte los amounts mayor → minor units según los decimales de la moneda.
+ */
 async function insertLinesAndExtras(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   tenantId: string,
   poId: string,
+  currencyCode: string,
+  primaryCurrencyCode: string,
   lines: z.infer<typeof lineSchema>[],
   extras: z.infer<typeof extraSchema>[]
 ): Promise<void> {
+  const dpCurrency = getCurrencyDecimalPlaces(currencyCode);
+  const dpPrimary = getCurrencyDecimalPlaces(primaryCurrencyCode);
+  const toMinorCurrency = (x: number) => Math.round(x * Math.pow(10, dpCurrency));
+  const toMinorPrimary = (x: number) => Math.round(x * Math.pow(10, dpPrimary));
+
   const insertedLines: string[] = [];
   for (const l of lines) {
+    const unitCostMinor = toMinorCurrency(l.unitCostInCurrency);
     const [created] = await tx
       .insert(purchaseOrderLine)
       .values({
@@ -220,9 +376,10 @@ async function insertLinesAndExtras(
         tenantId,
         variantId: l.variantId,
         quantity: l.quantity,
-        unitCostInCurrency: l.unitCostInCurrency,
-        totalCostInCurrency: l.unitCostInCurrency * l.quantity,
-        sellPriceInPrimary: l.sellPriceInPrimary ?? null,
+        unitCostInCurrency: unitCostMinor,
+        totalCostInCurrency: unitCostMinor * l.quantity,
+        sellPriceInPrimary:
+          l.sellPriceInPrimary != null ? toMinorPrimary(l.sellPriceInPrimary) : null,
       })
       .returning({ id: purchaseOrderLine.id });
     if (created) insertedLines.push(created.id);
@@ -234,7 +391,7 @@ async function insertLinesAndExtras(
       .values({
         purchaseOrderId: poId,
         description: e.description,
-        amountInCurrency: e.amountInCurrency,
+        amountInCurrency: toMinorCurrency(e.amountInCurrency),
         allocationStrategy: e.allocationStrategy,
       })
       .returning({ id: purchaseExtraCost.id });
@@ -245,7 +402,7 @@ async function insertLinesAndExtras(
         await tx.insert(purchaseExtraCostManualSplit).values({
           extraCostId: createdExtra.id,
           purchaseOrderLineId: lineId,
-          amountInCurrency: s.amountInCurrency,
+          amountInCurrency: toMinorCurrency(s.amountInCurrency),
         });
       }
     }
@@ -277,11 +434,20 @@ export async function saveDraftPurchaseOrder(input: z.infer<typeof saveDraftSche
     }
     const supplierId = parsed.supplierId;
 
+    const [primaryRow] = await db
+      .select({ code: tenantCurrency.currencyCode })
+      .from(tenantCurrency)
+      .where(and(eq(tenantCurrency.tenantId, tenant.id), eq(tenantCurrency.isPrimary, true)))
+      .limit(1);
+    const primaryCurrencyCode = primaryRow?.code ?? 'PYG';
+    const dpCurrency = getCurrencyDecimalPlaces(parsed.currencyCode);
+    const toMinor = (x: number) => Math.round(x * Math.pow(10, dpCurrency));
+
     const subtotal = parsed.lines.reduce(
-      (acc, l) => acc + l.unitCostInCurrency * l.quantity,
+      (acc, l) => acc + toMinor(l.unitCostInCurrency) * l.quantity,
       0
     );
-    const extrasTotal = parsed.extras.reduce((acc, e) => acc + e.amountInCurrency, 0);
+    const extrasTotal = parsed.extras.reduce((acc, e) => acc + toMinor(e.amountInCurrency), 0);
     const total = subtotal + extrasTotal;
 
     const result = await db.transaction(async (tx) => {
@@ -346,7 +512,15 @@ export async function saveDraftPurchaseOrder(input: z.infer<typeof saveDraftSche
         poId = po.id;
       }
 
-      await insertLinesAndExtras(tx, tenant.id, poId, parsed.lines, parsed.extras);
+      await insertLinesAndExtras(
+        tx,
+        tenant.id,
+        poId,
+        parsed.currencyCode,
+        primaryCurrencyCode,
+        parsed.lines,
+        parsed.extras
+      );
       return { id: poId, poNumber };
     });
 
@@ -413,6 +587,17 @@ export async function getDraftForEdit(
     const enriched = await enrichVariantsForPurchase(tenantId, variantIds);
     const variantById = new Map(enriched.results.map((v) => [v.variantId, v]));
 
+    // DB guarda en minor units; el form trabaja en major.
+    const dpCurrency = getCurrencyDecimalPlaces(po.currencyCode);
+    const [primaryRow2] = await db
+      .select({ code: tenantCurrency.currencyCode })
+      .from(tenantCurrency)
+      .where(and(eq(tenantCurrency.tenantId, tenantId), eq(tenantCurrency.isPrimary, true)))
+      .limit(1);
+    const dpPrimary = getCurrencyDecimalPlaces(primaryRow2?.code ?? 'PYG');
+    const fromMinorCurrency = (x: number) => x / Math.pow(10, dpCurrency);
+    const fromMinorPrimary = (x: number) => x / Math.pow(10, dpPrimary);
+
     const lines = rawLines
       .map((l) => {
         const v = variantById.get(l.variantId);
@@ -421,8 +606,9 @@ export async function getDraftForEdit(
           id: l.lineId,
           variant: v,
           quantity: l.quantity,
-          unitCost: Number(l.unitCostInCurrency),
-          sellPrice: l.sellPriceInPrimary != null ? Number(l.sellPriceInPrimary) : null,
+          unitCost: fromMinorCurrency(Number(l.unitCostInCurrency)),
+          sellPrice:
+            l.sellPriceInPrimary != null ? fromMinorPrimary(Number(l.sellPriceInPrimary)) : null,
         };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
@@ -440,7 +626,7 @@ export async function getDraftForEdit(
     const extras = rawExtras.map((e) => ({
       id: e.id,
       description: e.description,
-      amount: Number(e.amountInCurrency),
+      amount: fromMinorCurrency(Number(e.amountInCurrency)),
       strategy: (e.allocationStrategy as DraftForEdit['extras'][number]['strategy']) ?? 'cost',
     }));
 
@@ -613,12 +799,19 @@ export async function receivePurchaseOrder(input: z.infer<typeof receiveSchema>)
       const stockMap = new Map<string, number>();
       for (const s of stockBefore) stockMap.set(s.id, s.stock);
 
+      // Para convertir landed (en minor de currencyCode) a minor de primary:
+      // landed_minor_primary = (landed_minor_currency / 10^dp_currency) * rate * 10^dp_primary
+      // Equivalente: landed * rate * 10^(dp_primary - dp_currency).
+      const dpCurrency = getCurrencyDecimalPlaces(po.currencyCode);
+      const dpPrimary = getCurrencyDecimalPlaces(primaryCode);
+      const minorConversionFactor = Math.pow(10, dpPrimary - dpCurrency);
+
       for (const l of lines) {
         const allocated = Math.round(allocatedByLine.get(l.id) ?? 0);
         const landedUnit = Math.round(
           Number(l.unitCostInCurrency) + allocated / l.quantity
         );
-        const landedUnitInPrimary = Math.round(landedUnit * rate);
+        const landedUnitInPrimary = Math.round(landedUnit * rate * minorConversionFactor);
 
         await tx
           .update(purchaseOrderLine)

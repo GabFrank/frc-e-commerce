@@ -16,6 +16,7 @@ import {
   saveDraftPurchaseOrder,
   type DraftForEdit,
 } from '@/lib/actions/purchase-order';
+import { getSuggestedExchangeRate } from '@/lib/actions/currency';
 import type { Supplier } from '@frc-e-commerce/db/schema';
 import type { PurchaseVariantOption } from '@/lib/actions/purchase-search';
 import { VariantSearchPicker } from './VariantSearchPicker';
@@ -44,12 +45,14 @@ export function CreatePoForm({
   suppliers: initialSuppliers,
   currencies,
   primaryCurrencyCode,
+  marginFormula,
   draftScopeKey,
   initialDraft,
 }: {
   suppliers: Supplier[];
   currencies: Currency[];
   primaryCurrencyCode: string;
+  marginFormula: 'markup' | 'gross';
   draftScopeKey: string;
   initialDraft: DraftForEdit | null;
 }) {
@@ -72,6 +75,14 @@ export function CreatePoForm({
   const [currencyCode, setCurrencyCode] = useState(
     initialDraft?.currencyCode ?? currencies[0]?.code ?? primaryCurrencyCode
   );
+  /**
+   * Cotización (cuántas unidades de la primary por 1 de la moneda elegida).
+   * Solo aplica cuando currencyCode !== primaryCurrencyCode. Cuando la
+   * moneda cambia, intentamos llenarla con el scrapper / DB; el usuario
+   * puede editarla manualmente.
+   */
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
+  const [rateSource, setRateSource] = useState<'scraper' | 'db' | 'none' | 'manual' | null>(null);
   const [notes, setNotes] = useState(initialDraft?.notes ?? '');
   const [lines, setLines] = useState<Line[]>(initialDraft?.lines ?? []);
   const [extras, setExtras] = useState<ExtraDraft[]>(initialDraft?.extras ?? []);
@@ -91,6 +102,31 @@ export function CreatePoForm({
   useEffect(() => {
     save({ supplierId, currencyCode, notes, lines, extras });
   }, [supplierId, currencyCode, notes, lines, extras, save]);
+
+  // Al cambiar la moneda, sugerir cotización (scraper → DB → manual).
+  // Si la moneda elegida es la primary, no hay nada que sugerir.
+  useEffect(() => {
+    if (currencyCode === primaryCurrencyCode) {
+      setExchangeRate(null);
+      setRateSource(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const res = await getSuggestedExchangeRate(currencyCode);
+      if (cancelled) return;
+      if (res && res.value > 0) {
+        setExchangeRate(res.value);
+        setRateSource(res.source);
+      } else {
+        setExchangeRate(null);
+        setRateSource('none');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currencyCode, primaryCurrencyCode]);
 
   const recoverDraft = () => {
     if (!draftFound) return;
@@ -344,6 +380,39 @@ export function CreatePoForm({
                 ))}
               </Select>
             </div>
+
+            {currencyCode !== primaryCurrencyCode && (
+              <div className="space-y-1.5 md:col-span-2">
+                <Label htmlFor="po-rate">
+                  Cotización ({currencyCode} → {primaryCurrencyCode})
+                </Label>
+                <div className="flex items-center gap-2">
+                  <MoneyInput
+                    id="po-rate"
+                    value={exchangeRate}
+                    onChange={(v) => {
+                      setExchangeRate(v);
+                      setRateSource('manual');
+                    }}
+                    decimalPlaces={getCurrencyDecimalPlaces(primaryCurrencyCode)}
+                    placeholder="0"
+                    className="max-w-xs"
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {rateSource === 'scraper' && '🌐 cotización del día'}
+                    {rateSource === 'db' && '💾 última guardada'}
+                    {rateSource === 'manual' && '✎ manual'}
+                    {rateSource === 'none' && (
+                      <span className="text-amber-700">⚠ sin cotización — ingresá manual</span>
+                    )}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Cuántos {primaryCurrencyCode} por 1 {currencyCode}. Se usa para mostrar el
+                  equivalente del costo unitario debajo del input.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -388,6 +457,8 @@ export function CreatePoForm({
                       line={line}
                       currencyCode={currencyCode}
                       primaryCurrencyCode={primaryCurrencyCode}
+                      exchangeRate={exchangeRate}
+                      marginFormula={marginFormula}
                       onChange={(patch) =>
                         setLines((prev) =>
                           prev.map((x) => (x.id === line.id ? { ...x, ...patch } : x))
@@ -623,12 +694,16 @@ function LineRow({
   line,
   currencyCode,
   primaryCurrencyCode,
+  exchangeRate,
+  marginFormula,
   onChange,
   onRemove,
 }: {
   line: Line;
   currencyCode: string;
   primaryCurrencyCode: string;
+  exchangeRate: number | null;
+  marginFormula: 'markup' | 'gross';
   onChange: (patch: Partial<Line>) => void;
   onRemove: () => void;
 }) {
@@ -715,6 +790,11 @@ function LineRow({
           placeholder={`Costo ${currencyCode}`}
           className="h-8 w-28 text-right font-mono text-sm"
         />
+        {currencyCode !== primaryCurrencyCode && exchangeRate && exchangeRate > 0 && line.unitCost > 0 && (
+          <div className="flex justify-end text-[10px] text-muted-foreground">
+            ≈ {formatAmount(line.unitCost * exchangeRate, primaryCurrencyCode)}
+          </div>
+        )}
         {suggestions.length > 0 && (
           <div className="flex justify-end gap-1">
             {suggestions.map((s, i) => (
@@ -743,6 +823,8 @@ function LineRow({
         line={line}
         currencyCode={currencyCode}
         primaryCurrencyCode={primaryCurrencyCode}
+        exchangeRate={exchangeRate}
+        marginFormula={marginFormula}
       />
 
       <div className="w-24 shrink-0 text-right font-mono text-sm">
@@ -828,28 +910,35 @@ function MarginCell({
   line,
   currencyCode,
   primaryCurrencyCode,
+  exchangeRate,
+  marginFormula,
 }: {
   line: Line;
   currencyCode: string;
   primaryCurrencyCode: string;
+  exchangeRate: number | null;
+  marginFormula: 'markup' | 'gross';
 }) {
-  // Margen solo computable cuando la PO está en moneda primary (costo y precio en misma unidad).
-  if (currencyCode !== primaryCurrencyCode) {
+  // Precio efectivo (siempre en primary): el nuevo si fue seteado, sino el actual del producto.
+  const price = line.sellPrice != null ? line.sellPrice : line.variant.currentSellPrice;
+  // Costo en primary: si la PO está en otra moneda, lo convertimos con la cotización.
+  let costInPrimary: number;
+  if (currencyCode === primaryCurrencyCode) {
+    costInPrimary = line.unitCost;
+  } else if (exchangeRate && exchangeRate > 0) {
+    costInPrimary = line.unitCost * exchangeRate;
+  } else {
     return (
       <div
         className="w-16 shrink-0 text-right font-mono text-xs text-muted-foreground"
-        title="No se puede calcular: la PO está en moneda distinta a primary"
+        title="Cargá la cotización para calcular el margen en moneda primary"
       >
         —
       </div>
     );
   }
 
-  // Precio efectivo: el nuevo si fue setado, sino el actual del producto
-  const price = line.sellPrice != null ? line.sellPrice : line.variant.currentSellPrice;
-  const cost = line.unitCost;
-
-  if (price <= 0 || cost <= 0) {
+  if (price <= 0 || costInPrimary <= 0) {
     return (
       <div
         className="w-16 shrink-0 text-right font-mono text-xs text-muted-foreground"
@@ -860,7 +949,13 @@ function MarginCell({
     );
   }
 
-  const marginPct = ((price - cost) / price) * 100;
+  // markup: cuánto se le suma al costo en proporción → (precio − costo) / costo
+  // gross : qué proporción del precio es ganancia → (precio − costo) / precio
+  const marginPct =
+    marginFormula === 'markup'
+      ? ((price - costInPrimary) / costInPrimary) * 100
+      : ((price - costInPrimary) / price) * 100;
+
   const tone =
     marginPct < 0
       ? 'text-destructive'
@@ -868,11 +963,15 @@ function MarginCell({
         ? 'text-amber-600 dark:text-amber-400'
         : 'text-emerald-700 dark:text-emerald-400';
   const label = `${marginPct.toFixed(0)}%`;
+  const formulaTip =
+    marginFormula === 'markup'
+      ? 'sobre costo (markup)'
+      : 'sobre precio (gross margin)';
 
   return (
     <div
       className={`w-16 shrink-0 text-right font-mono text-sm ${tone}`}
-      title={`Margen ${marginPct.toFixed(1)}% sobre precio venta · costo ${fmt(cost)} / venta ${fmt(price)}`}
+      title={`Margen ${marginPct.toFixed(1)}% ${formulaTip} · costo ${fmt(costInPrimary)} / venta ${fmt(price)}`}
     >
       {label}
     </div>
