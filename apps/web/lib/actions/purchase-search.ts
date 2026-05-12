@@ -10,6 +10,8 @@ import {
   productVariantAvgCost,
   purchaseOrder,
   purchaseOrderLine,
+  supplier,
+  supplierProductVariant,
 } from '@frc-e-commerce/db/schema';
 import { requireTenantId } from '@/lib/tenant';
 import { requireSessionCapability } from '@/lib/auth/permissions';
@@ -34,6 +36,14 @@ export type PurchaseVariantOption = {
     currencyCode: string;
     receivedAt: Date | null;
   } | null;
+  /** Proveedores vinculados a esta variante (tabla supplier_product_variant). Vacío si nunca se le compró a nadie. */
+  linkedSuppliers: Array<{
+    supplierId: string;
+    supplierName: string;
+    lastUnitCost: number;
+    currencyCode: string;
+    lastReceivedAt: Date | null;
+  }>;
 };
 
 const searchSchema = z.object({
@@ -43,6 +53,8 @@ const searchSchema = z.object({
   limit: z.number().int().min(1).max(50).default(20),
   /** Offset para paginación. Solo aplica a búsquedas con query (no al top-20). */
   offset: z.number().int().min(0).default(0),
+  /** Si true + supplierId presente, filtra a variantes vinculadas a ese proveedor. */
+  linkedToSupplierOnly: z.boolean().default(false),
 });
 
 /** Quita variantes "Default" (color=null AND size=null) cuando su producto tiene
@@ -106,12 +118,37 @@ export async function searchVariantsForPurchase(
     const parsed = searchSchema.parse(input);
     const query = parsed.query.trim();
 
+    // Si "solo vinculados al proveedor" está activo, calculamos primero el set de
+    // variantIds vinculadas a ese supplier para acotar las queries siguientes.
+    let linkedVariantIdSet: Set<string> | null = null;
+    if (parsed.linkedToSupplierOnly && parsed.supplierId) {
+      const linked = await db
+        .select({ variantId: supplierProductVariant.variantId })
+        .from(supplierProductVariant)
+        .where(
+          and(
+            eq(supplierProductVariant.tenantId, tenantId),
+            eq(supplierProductVariant.supplierId, parsed.supplierId)
+          )
+        );
+      linkedVariantIdSet = new Set(linked.map((r) => r.variantId));
+      if (linkedVariantIdSet.size === 0) return { ok: true, results: [], hasMore: false };
+    }
+
     let variantIds: string[] = [];
 
     let rawCount = 0;
     if (query.length === 0) {
       // Sin query: las N variantes más compradas en los últimos 90 días. Sin paginación.
       const since = new Date(Date.now() - 90 * 86400_000);
+      const conds = [
+        eq(purchaseOrder.tenantId, tenantId),
+        gte(purchaseOrder.createdAt, since),
+        ne(purchaseOrder.status, 'cancelled'),
+      ];
+      if (linkedVariantIdSet) {
+        conds.push(inArray(purchaseOrderLine.variantId, Array.from(linkedVariantIdSet)));
+      }
       const top = await db
         .select({
           variantId: purchaseOrderLine.variantId,
@@ -119,13 +156,7 @@ export async function searchVariantsForPurchase(
         })
         .from(purchaseOrderLine)
         .innerJoin(purchaseOrder, eq(purchaseOrder.id, purchaseOrderLine.purchaseOrderId))
-        .where(
-          and(
-            eq(purchaseOrder.tenantId, tenantId),
-            gte(purchaseOrder.createdAt, since),
-            ne(purchaseOrder.status, 'cancelled')
-          )
-        )
+        .where(and(...conds))
         .groupBy(purchaseOrderLine.variantId)
         .orderBy(desc(sql`sum(${purchaseOrderLine.quantity})`))
         .limit(parsed.limit);
@@ -135,23 +166,25 @@ export async function searchVariantsForPurchase(
       const q = `%${query}%`;
       // Buscar a nivel de variante: por SKU, name de variante, o name/slug de producto padre.
       // Ordenamos por sku para que la paginación sea estable entre páginas.
+      const conds = [
+        eq(productVariant.tenantId, tenantId),
+        eq(productVariant.active, true),
+        or(
+          ilike(productVariant.sku, q),
+          ilike(productVariant.name, q),
+          ilike(productVariant.color, q),
+          ilike(product.name, q),
+          ilike(product.slug, q)
+        )!,
+      ];
+      if (linkedVariantIdSet) {
+        conds.push(inArray(productVariant.id, Array.from(linkedVariantIdSet)));
+      }
       const matches = await db
         .select({ id: productVariant.id, sku: productVariant.sku })
         .from(productVariant)
         .innerJoin(product, eq(product.id, productVariant.productId))
-        .where(
-          and(
-            eq(productVariant.tenantId, tenantId),
-            eq(productVariant.active, true),
-            or(
-              ilike(productVariant.sku, q),
-              ilike(productVariant.name, q),
-              ilike(productVariant.color, q),
-              ilike(product.name, q),
-              ilike(product.slug, q)
-            )
-          )
-        )
+        .where(and(...conds))
         .orderBy(asc(productVariant.sku))
         .limit(parsed.limit)
         .offset(parsed.offset);
@@ -286,6 +319,8 @@ export async function searchVariantsForPurchase(
       }
     }
 
+    const linkedSuppliersByVariant = await fetchLinkedSuppliersFor(tenantId, variantIds);
+
     const results: PurchaseVariantOption[] = rows.map((r) => ({
       variantId: r.variantId,
       productId: r.productId,
@@ -300,6 +335,7 @@ export async function searchVariantsForPurchase(
       currentSellPrice: Number(r.currentSellPrice ?? 0),
       avgCostInPrimary: Number(r.avgCostInPrimary ?? 0),
       lastUnitCost: lastCostByVariant.get(r.variantId) ?? null,
+      linkedSuppliers: linkedSuppliersByVariant.get(r.variantId) ?? [],
     }));
 
     // Preservar orden de variantIds (importante para query vacío que devuelve por ranking)
@@ -414,6 +450,8 @@ async function enrichVariants(
     }
   }
 
+  const linkedSuppliersByVariant = await fetchLinkedSuppliersFor(tenantId, variantIds);
+
   const results: PurchaseVariantOption[] = rows.map((r) => ({
     variantId: r.variantId,
     productId: r.productId,
@@ -428,7 +466,50 @@ async function enrichVariants(
     currentSellPrice: Number(r.currentSellPrice ?? 0),
     avgCostInPrimary: Number(r.avgCostInPrimary ?? 0),
     lastUnitCost: null,
+    linkedSuppliers: linkedSuppliersByVariant.get(r.variantId) ?? [],
   }));
 
   return { ok: true, results };
+}
+
+/** Trae los vínculos supplier↔variant agrupados por variantId, con nombre del proveedor.
+ *  Los costos vuelven en minor units de currencyCode (igual que la DB). */
+async function fetchLinkedSuppliersFor(
+  tenantId: string,
+  variantIds: string[]
+): Promise<Map<string, PurchaseVariantOption['linkedSuppliers']>> {
+  const out = new Map<string, PurchaseVariantOption['linkedSuppliers']>();
+  if (variantIds.length === 0) return out;
+
+  const rows = await db
+    .select({
+      variantId: supplierProductVariant.variantId,
+      supplierId: supplierProductVariant.supplierId,
+      supplierName: supplier.name,
+      lastUnitCost: supplierProductVariant.lastUnitCostInCurrency,
+      currencyCode: supplierProductVariant.currencyCode,
+      lastReceivedAt: supplierProductVariant.lastReceivedAt,
+    })
+    .from(supplierProductVariant)
+    .innerJoin(supplier, eq(supplier.id, supplierProductVariant.supplierId))
+    .where(
+      and(
+        eq(supplierProductVariant.tenantId, tenantId),
+        inArray(supplierProductVariant.variantId, variantIds)
+      )
+    )
+    .orderBy(desc(supplierProductVariant.lastReceivedAt));
+
+  for (const r of rows) {
+    const list = out.get(r.variantId) ?? [];
+    list.push({
+      supplierId: r.supplierId,
+      supplierName: r.supplierName,
+      lastUnitCost: Number(r.lastUnitCost),
+      currencyCode: r.currencyCode,
+      lastReceivedAt: r.lastReceivedAt,
+    });
+    out.set(r.variantId, list);
+  }
+  return out;
 }

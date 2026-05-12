@@ -156,10 +156,28 @@ export function CreatePoForm({
       const next: Line[] = [...prev];
       for (const v of variants) {
         if (existing.has(v.variantId)) continue;
-        const suggestedCost =
-          v.lastUnitCost && v.lastUnitCost.currencyCode === currencyCode
-            ? v.lastUnitCost.value
-            : 0;
+        // Pre-fill costo: si la moneda matchea, usamos el último valor crudo.
+        // Si el último estaba en primary y la PO actual es no-primary (o viceversa),
+        // intentamos convertir con exchangeRate. Para combinaciones cruzadas
+        // (último en otra moneda no-primary), preferimos no inventar conversión.
+        let suggestedCost = 0;
+        if (v.lastUnitCost) {
+          if (v.lastUnitCost.currencyCode === currencyCode) {
+            suggestedCost = v.lastUnitCost.value;
+          } else if (
+            v.lastUnitCost.currencyCode === primaryCurrencyCode &&
+            currencyCode !== primaryCurrencyCode &&
+            exchangeRate &&
+            exchangeRate > 0
+          ) {
+            suggestedCost = v.lastUnitCost.value / exchangeRate;
+          } else if (
+            currencyCode === primaryCurrencyCode &&
+            v.lastUnitCost.currencyCode !== primaryCurrencyCode
+          ) {
+            // Último en una moneda extranjera; no convertimos sin tener su rate.
+          }
+        }
         next.push({
           id: genId(),
           variant: v,
@@ -709,31 +727,8 @@ function LineRow({
 }) {
   const v = line.variant;
 
-  // Sugerencias: solo aplicables si la currency matchea (último cost en misma currency, o avg en primary).
-  const suggestions: Array<{ label: string; value: number; title: string }> = [];
-  if (v.lastUnitCost && v.lastUnitCost.currencyCode === currencyCode) {
-    const dateStr = v.lastUnitCost.receivedAt
-      ? new Date(v.lastUnitCost.receivedAt).toLocaleDateString('es-PY', {
-          day: '2-digit',
-          month: 'short',
-        })
-      : '';
-    suggestions.push({
-      label: `${fmt(v.lastUnitCost.value)}`,
-      value: v.lastUnitCost.value,
-      title: `Último costo${dateStr ? ` (${dateStr})` : ''} — click para aplicar`,
-    });
-  }
-  if (v.avgCostInPrimary > 0 && currencyCode === primaryCurrencyCode) {
-    suggestions.push({
-      label: `avg ${fmt(v.avgCostInPrimary)}`,
-      value: v.avgCostInPrimary,
-      title: 'Costo promedio ponderado — click para aplicar',
-    });
-  }
-
   return (
-    <div className="flex items-center gap-2 px-3 py-2 text-sm">
+    <div className="flex items-start gap-2 px-3 py-2 text-sm">
       {v.imageUrl ? (
         <Image
           src={v.imageUrl}
@@ -759,6 +754,27 @@ function LineRow({
           {v.size && (
             <span className="rounded border bg-primary/10 px-1 py-0 font-mono text-[10px] font-semibold text-primary">
               {v.size}
+            </span>
+          )}
+          {v.linkedSuppliers.length > 0 && (
+            <span
+              className="cursor-help rounded border bg-muted/40 px-1 py-0 text-[10px] text-muted-foreground"
+              title={v.linkedSuppliers
+                .map(
+                  (s) =>
+                    `${s.supplierName}: ${formatAmount(s.lastUnitCost, s.currencyCode)}` +
+                    (s.lastReceivedAt
+                      ? ` · ${new Date(s.lastReceivedAt).toLocaleDateString('es-PY', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: '2-digit',
+                        })}`
+                      : '')
+                )
+                .join('\n')}
+            >
+              {v.linkedSuppliers.length}{' '}
+              {v.linkedSuppliers.length === 1 ? 'proveedor' : 'proveedores'}
             </span>
           )}
         </div>
@@ -795,21 +811,38 @@ function LineRow({
             ≈ {formatAmount(line.unitCost * exchangeRate, primaryCurrencyCode)}
           </div>
         )}
-        {suggestions.length > 0 && (
-          <div className="flex justify-end gap-1">
-            {suggestions.map((s, i) => (
+        {v.lastUnitCost &&
+          (() => {
+            const canApply = v.lastUnitCost.currencyCode === currencyCode;
+            const dateLabel = v.lastUnitCost.receivedAt
+              ? new Date(v.lastUnitCost.receivedAt).toLocaleDateString('es-PY', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: '2-digit',
+                })
+              : null;
+            const content = (
+              <>
+                Último:{' '}
+                <strong className="text-foreground">
+                  {formatAmount(v.lastUnitCost.value, v.lastUnitCost.currencyCode)}
+                </strong>
+                {dateLabel && <> · {dateLabel}</>}
+              </>
+            );
+            return canApply ? (
               <button
-                key={i}
                 type="button"
-                onClick={() => onChange({ unitCost: s.value })}
-                title={s.title}
-                className="rounded bg-muted/40 px-1 py-0 text-[10px] text-muted-foreground hover:bg-muted hover:text-primary"
+                onClick={() => onChange({ unitCost: v.lastUnitCost!.value })}
+                title="Click para aplicar al costo"
+                className="text-right text-[10px] text-muted-foreground hover:text-primary hover:underline"
               >
-                {s.label}
+                {content}
               </button>
-            ))}
-          </div>
-        )}
+            ) : (
+              <div className="text-right text-[10px] text-muted-foreground">{content}</div>
+            );
+          })()}
       </div>
 
       <SellPriceCell

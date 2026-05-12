@@ -13,6 +13,7 @@ import {
   productVariantAvgCost,
   stockMovement,
   supplier,
+  supplierProductVariant,
   exchangeRate,
   tenantCurrency,
   type PurchaseOrder,
@@ -873,6 +874,36 @@ export async function receivePurchaseOrder(input: z.infer<typeof receiveSchema>)
         }
         avgByVariant.set(l.variantId, { avg: newAvg, stockValue: newStockValue });
         stockMap.set(l.variantId, newStock);
+
+        // Upsert vínculo supplier↔variant con último costo de compra.
+        // Persiste histórico; ediciones futuras (más POs) sobrescriben este snapshot.
+        await tx
+          .insert(supplierProductVariant)
+          .values({
+            tenantId: tenant.id,
+            supplierId: po.supplierId,
+            variantId: l.variantId,
+            lastUnitCostInCurrency: Number(l.unitCostInCurrency),
+            currencyCode: po.currencyCode,
+            exchangeRateSnapshot: po.currencyCode !== primaryCode ? rate.toString() : null,
+            lastUnitCostInPrimary: landedUnitInPrimary,
+            lastPurchaseOrderId: po.id,
+            lastReceivedAt: sql`now()`,
+            totalQuantityPurchased: l.quantity,
+          })
+          .onConflictDoUpdate({
+            target: [supplierProductVariant.supplierId, supplierProductVariant.variantId],
+            set: {
+              lastUnitCostInCurrency: Number(l.unitCostInCurrency),
+              currencyCode: po.currencyCode,
+              exchangeRateSnapshot: po.currencyCode !== primaryCode ? rate.toString() : null,
+              lastUnitCostInPrimary: landedUnitInPrimary,
+              lastPurchaseOrderId: po.id,
+              lastReceivedAt: sql`now()`,
+              totalQuantityPurchased: sql`${supplierProductVariant.totalQuantityPurchased} + ${l.quantity}`,
+              updatedAt: sql`now()`,
+            },
+          });
       }
 
       // 5. Update PO header
