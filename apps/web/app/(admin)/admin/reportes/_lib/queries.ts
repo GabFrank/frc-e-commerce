@@ -1,4 +1,4 @@
-import { and, asc, between, desc, eq, inArray, lt, ne, sql } from 'drizzle-orm';
+import { and, asc, between, desc, eq, inArray, isNotNull, lt, ne, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import {
   cashClosure,
@@ -15,10 +15,20 @@ import {
   purchaseOrder,
   stockMovement,
   supplier,
+  tenantCurrency,
   user,
 } from '@frc-e-commerce/db/schema';
 import type { DateRange } from './date-range';
 import { granularityTruncUnit } from './date-range';
+
+export async function getPrimaryCurrencyCode(tenantId: string): Promise<string> {
+  const [row] = await db
+    .select({ code: tenantCurrency.currencyCode })
+    .from(tenantCurrency)
+    .where(and(eq(tenantCurrency.tenantId, tenantId), eq(tenantCurrency.isPrimary, true)))
+    .limit(1);
+  return row?.code ?? 'PYG';
+}
 
 export type SalesKpis = {
   grossSales: number;
@@ -376,12 +386,46 @@ export type RecentMovement = {
   createdByName: string | null;
 };
 
+export type StockMovementsFilters = {
+  kind?: string;
+  q?: string;
+  page?: number;
+  pageSize?: number;
+};
+
 export async function getRecentStockMovements(
   tenantId: string,
   range: DateRange,
-  limit: number
-): Promise<RecentMovement[]> {
-  return db
+  filters: StockMovementsFilters = {}
+): Promise<{ rows: RecentMovement[]; total: number }> {
+  const conds = [
+    eq(stockMovement.tenantId, tenantId),
+    between(stockMovement.createdAt, range.from, range.to),
+  ];
+  if (filters.kind && filters.kind !== 'all') {
+    conds.push(eq(stockMovement.kind, filters.kind));
+  }
+  if (filters.q && filters.q.trim()) {
+    const term = `%${filters.q.trim()}%`;
+    conds.push(
+      sql`(${productVariant.sku} ILIKE ${term} OR ${product.name} ILIKE ${term})`
+    );
+  }
+
+  const where = and(...conds);
+  const pageSize =
+    filters.pageSize && [25, 50, 100].includes(filters.pageSize) ? filters.pageSize : 25;
+  const page = Math.max(1, filters.page ?? 1);
+  const offset = (page - 1) * pageSize;
+
+  const [{ value: total }] = await db
+    .select({ value: sql<number>`count(*)::int` })
+    .from(stockMovement)
+    .innerJoin(productVariant, eq(productVariant.id, stockMovement.variantId))
+    .innerJoin(product, eq(product.id, productVariant.productId))
+    .where(where);
+
+  const rows = await db
     .select({
       id: stockMovement.id,
       kind: stockMovement.kind,
@@ -400,14 +444,12 @@ export async function getRecentStockMovements(
     .innerJoin(productVariant, eq(productVariant.id, stockMovement.variantId))
     .innerJoin(product, eq(product.id, productVariant.productId))
     .leftJoin(user, eq(user.id, stockMovement.createdBy))
-    .where(
-      and(
-        eq(stockMovement.tenantId, tenantId),
-        between(stockMovement.createdAt, range.from, range.to)
-      )
-    )
+    .where(where)
     .orderBy(desc(stockMovement.createdAt))
-    .limit(limit);
+    .limit(pageSize)
+    .offset(offset);
+
+  return { rows, total };
 }
 
 // ── Caja ─────────────────────────────────────────────────────────────────────
@@ -418,7 +460,8 @@ export type CashKpis = {
   totalReturns: number;
   totalCancellations: number;
   totalTransactions: number;
-  netDiff: number;
+  /** Diferencia de conteo agrupada por moneda (en MINOR units de cada moneda). */
+  diffsByCurrency: Array<{ currencyCode: string; diff: number }>;
 };
 
 export async function getCashKpis(tenantId: string, range: DateRange): Promise<CashKpis> {
@@ -440,13 +483,17 @@ export async function getCashKpis(tenantId: string, range: DateRange): Promise<C
     .innerJoin(cashClosure, eq(cashClosure.cashSessionId, cashSession.id))
     .where(closuresFilter);
 
-  const [diffAgg] = await db
+  // Las diferencias de cash_session_balance están en MINOR de su currencyCode.
+  // Sumar entre monedas mezcla unidades distintas, así que devolvemos lista agrupada.
+  const diffRows = await db
     .select({
-      netDiff: sql<number>`coalesce(sum(coalesce(${cashSessionBalance.diff}, 0)), 0)`.mapWith(Number),
+      currencyCode: cashSessionBalance.currencyCode,
+      diff: sql<number>`coalesce(sum(coalesce(${cashSessionBalance.diff}, 0)), 0)`.mapWith(Number),
     })
     .from(cashSessionBalance)
     .innerJoin(cashSession, eq(cashSession.id, cashSessionBalance.cashSessionId))
-    .where(closuresFilter);
+    .where(closuresFilter)
+    .groupBy(cashSessionBalance.currencyCode);
 
   return {
     totalClosures: agg?.totalClosures ?? 0,
@@ -454,7 +501,7 @@ export async function getCashKpis(tenantId: string, range: DateRange): Promise<C
     totalReturns: agg?.totalReturns ?? 0,
     totalCancellations: agg?.totalCancellations ?? 0,
     totalTransactions: agg?.totalTransactions ?? 0,
-    netDiff: diffAgg?.netDiff ?? 0,
+    diffsByCurrency: diffRows.map((r) => ({ currencyCode: r.currencyCode, diff: r.diff })),
   };
 }
 
@@ -509,7 +556,8 @@ export type CashClosureRow = {
   totalSales: number;
   totalReturns: number;
   totalTransactions: number;
-  netDiff: number;
+  /** Diferencias por moneda (en MINOR units de cada currency). Una entrada por moneda con diff ≠ 0 (o todas si hubo balances). */
+  diffsByCurrency: Array<{ currencyCode: string; diff: number }>;
 };
 
 export async function getClosuresInRange(
@@ -547,18 +595,23 @@ export async function getClosuresInRange(
   const diffs = await db
     .select({
       cashSessionId: cashSessionBalance.cashSessionId,
-      diff: sql<number>`coalesce(sum(coalesce(${cashSessionBalance.diff}, 0)), 0)`.mapWith(Number),
+      currencyCode: cashSessionBalance.currencyCode,
+      diff: sql<number>`coalesce(${cashSessionBalance.diff}, 0)`.mapWith(Number),
     })
     .from(cashSessionBalance)
-    .where(inArray(cashSessionBalance.cashSessionId, sessionIds))
-    .groupBy(cashSessionBalance.cashSessionId);
-  const diffMap = new Map(diffs.map((d) => [d.cashSessionId, d.diff]));
+    .where(inArray(cashSessionBalance.cashSessionId, sessionIds));
+  const diffMap = new Map<string, Array<{ currencyCode: string; diff: number }>>();
+  for (const d of diffs) {
+    const list = diffMap.get(d.cashSessionId) ?? [];
+    list.push({ currencyCode: d.currencyCode, diff: d.diff });
+    diffMap.set(d.cashSessionId, list);
+  }
 
   return baseRows.map((r) => ({
     ...r,
     totalSales: Number(r.totalSales ?? 0),
     totalReturns: Number(r.totalReturns ?? 0),
-    netDiff: diffMap.get(r.sessionId) ?? 0,
+    diffsByCurrency: diffMap.get(r.sessionId) ?? [],
   }));
 }
 
@@ -566,40 +619,82 @@ export async function getClosuresInRange(
 
 export type PurchaseKpis = {
   totalOrders: number;
+  /** Gasto total en MINOR units de la moneda primary del tenant. */
   totalSpent: number;
+  /** Costos extras totales en MINOR units de primary. */
   totalExtras: number;
+  /** Tamaño promedio de PO en MINOR units de primary. */
   avgPoSize: number;
+  /** Número de POs en el período que NO tienen snapshot a primary (placed sin recibir) — quedaron fuera. */
+  pendingOrdersCount: number;
 };
 
 export async function getPurchaseKpis(
   tenantId: string,
   range: DateRange
 ): Promise<PurchaseKpis> {
+  // Solo contamos POs con totalInPrimary (i.e., recibidas o partial_received).
+  // Para placed/cancelled sin snapshot a primary no podemos comparar monedas.
   const [agg] = await db
     .select({
       totalOrders: sql<number>`count(*)`.mapWith(Number),
-      totalSpent: sql<number>`coalesce(sum(coalesce(${purchaseOrder.totalInPrimary}, 0)), 0)`.mapWith(Number),
+      totalSpent: sql<number>`coalesce(sum(${purchaseOrder.totalInPrimary}), 0)`.mapWith(Number),
     })
     .from(purchaseOrder)
     .where(
       and(
         eq(purchaseOrder.tenantId, tenantId),
         between(purchaseOrder.createdAt, range.from, range.to),
-        ne(purchaseOrder.status, 'cancelled')
+        ne(purchaseOrder.status, 'cancelled'),
+        isNotNull(purchaseOrder.totalInPrimary)
       )
     );
 
-  const [extras] = await db
+  // Extras: convertirlos a primary usando exchangeRateSnapshot de cada PO.
+  // amount_in_currency es MINOR de currencyCode; primary tiene su propio dp.
+  // El rate convierte: valor_minor_primary = valor_minor_currency * rate * 10^(dp_primary - dp_currency)
+  // Como no sabemos dp_primary acá (sin context), aproximamos: dado que `totalInPrimary` ya
+  // contempló esa misma fórmula, basta con asumir mismas escalas. Simplificamos:
+  // expressing extras como fracción del total de la PO en currency, multiplicar por totalInPrimary.
+  // Eso elude la mezcla de unidades.
+  const extrasRows = await db
     .select({
-      totalExtras: sql<number>`coalesce(sum(${purchaseExtraCost.amountInCurrency}), 0)`.mapWith(Number),
+      poId: purchaseOrder.id,
+      totalInCurrency: purchaseOrder.totalInCurrency,
+      totalInPrimary: purchaseOrder.totalInPrimary,
+      extrasInCurrency: sql<number>`coalesce(sum(${purchaseExtraCost.amountInCurrency}), 0)`.mapWith(Number),
     })
-    .from(purchaseExtraCost)
-    .innerJoin(purchaseOrder, eq(purchaseOrder.id, purchaseExtraCost.purchaseOrderId))
+    .from(purchaseOrder)
+    .innerJoin(purchaseExtraCost, eq(purchaseOrder.id, purchaseExtraCost.purchaseOrderId))
     .where(
       and(
         eq(purchaseOrder.tenantId, tenantId),
         between(purchaseOrder.createdAt, range.from, range.to),
-        ne(purchaseOrder.status, 'cancelled')
+        ne(purchaseOrder.status, 'cancelled'),
+        isNotNull(purchaseOrder.totalInPrimary)
+      )
+    )
+    .groupBy(purchaseOrder.id, purchaseOrder.totalInCurrency, purchaseOrder.totalInPrimary);
+
+  const totalExtras = extrasRows.reduce((acc, r) => {
+    const totalCurr = Number(r.totalInCurrency);
+    const totalPrim = Number(r.totalInPrimary ?? 0);
+    const extras = Number(r.extrasInCurrency);
+    if (totalCurr <= 0) return acc;
+    return acc + Math.round((extras / totalCurr) * totalPrim);
+  }, 0);
+
+  // POs sin snapshot: las que están placed o partial sin haber recibido nada.
+  const [pending] = await db
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(purchaseOrder)
+    .where(
+      and(
+        eq(purchaseOrder.tenantId, tenantId),
+        between(purchaseOrder.createdAt, range.from, range.to),
+        ne(purchaseOrder.status, 'cancelled'),
+        ne(purchaseOrder.status, 'draft'),
+        sql`${purchaseOrder.totalInPrimary} IS NULL`
       )
     );
 
@@ -609,8 +704,9 @@ export async function getPurchaseKpis(
   return {
     totalOrders,
     totalSpent,
-    totalExtras: extras?.totalExtras ?? 0,
+    totalExtras,
     avgPoSize: totalOrders > 0 ? Math.round(totalSpent / totalOrders) : 0,
+    pendingOrdersCount: pending?.count ?? 0,
   };
 }
 
@@ -631,7 +727,7 @@ export async function getSpendBySupplier(
       supplierId: supplier.id,
       supplierName: supplier.name,
       orderCount: sql<number>`count(*)`.mapWith(Number),
-      totalSpent: sql<number>`coalesce(sum(coalesce(${purchaseOrder.totalInPrimary}, 0)), 0)`.mapWith(Number),
+      totalSpent: sql<number>`coalesce(sum(${purchaseOrder.totalInPrimary}), 0)`.mapWith(Number),
     })
     .from(purchaseOrder)
     .innerJoin(supplier, eq(supplier.id, purchaseOrder.supplierId))
@@ -639,11 +735,12 @@ export async function getSpendBySupplier(
       and(
         eq(purchaseOrder.tenantId, tenantId),
         between(purchaseOrder.createdAt, range.from, range.to),
-        ne(purchaseOrder.status, 'cancelled')
+        ne(purchaseOrder.status, 'cancelled'),
+        isNotNull(purchaseOrder.totalInPrimary)
       )
     )
     .groupBy(supplier.id, supplier.name)
-    .orderBy(desc(sql`sum(coalesce(${purchaseOrder.totalInPrimary}, 0))`))
+    .orderBy(desc(sql`sum(${purchaseOrder.totalInPrimary})`))
     .limit(limit);
 }
 
@@ -686,4 +783,107 @@ export async function getRecentPurchaseOrders(
     )
     .orderBy(desc(purchaseOrder.createdAt))
     .limit(limit);
+}
+
+// ── Dashboard helpers ────────────────────────────────────────────────────────
+
+export type OpenCashSession = {
+  id: string;
+  cashierName: string | null;
+  openedAt: Date;
+};
+
+/** Sesiones de caja con status='open' (todas, no solo del día). */
+export async function getOpenCashSessions(tenantId: string): Promise<OpenCashSession[]> {
+  return db
+    .select({
+      id: cashSession.id,
+      cashierName: user.name,
+      openedAt: cashSession.openedAt,
+    })
+    .from(cashSession)
+    .leftJoin(user, eq(user.id, cashSession.cashierId))
+    .where(and(eq(cashSession.tenantId, tenantId), eq(cashSession.status, 'open')))
+    .orderBy(desc(cashSession.openedAt));
+}
+
+export type LastClosedSession = {
+  sessionId: string;
+  closedAt: Date;
+  cashierName: string | null;
+  diffsByCurrency: Array<{ currencyCode: string; diff: number }>;
+};
+
+/** Último cierre del tenant con sus diferencias por moneda. */
+export async function getLastClosedSession(
+  tenantId: string
+): Promise<LastClosedSession | null> {
+  const [row] = await db
+    .select({
+      sessionId: cashSession.id,
+      closedAt: cashSession.closedAt,
+      cashierName: user.name,
+    })
+    .from(cashSession)
+    .leftJoin(user, eq(user.id, cashSession.cashierId))
+    .where(
+      and(
+        eq(cashSession.tenantId, tenantId),
+        eq(cashSession.status, 'closed'),
+        isNotNull(cashSession.closedAt)
+      )
+    )
+    .orderBy(desc(cashSession.closedAt))
+    .limit(1);
+
+  if (!row || !row.closedAt) return null;
+
+  const balances = await db
+    .select({
+      currencyCode: cashSessionBalance.currencyCode,
+      diff: sql<number>`coalesce(${cashSessionBalance.diff}, 0)`.mapWith(Number),
+    })
+    .from(cashSessionBalance)
+    .where(eq(cashSessionBalance.cashSessionId, row.sessionId));
+
+  return {
+    sessionId: row.sessionId,
+    closedAt: row.closedAt,
+    cashierName: row.cashierName,
+    diffsByCurrency: balances.map((b) => ({ currencyCode: b.currencyCode, diff: b.diff })),
+  };
+}
+
+export type StalePendingPOs = {
+  count: number;
+  totalInCurrencyByCode: Array<{ currencyCode: string; total: number }>;
+};
+
+/** POs con status='placed' (o 'partially_received') sin recibir desde hace +N días. */
+export async function getStalePendingPOs(
+  tenantId: string,
+  daysThreshold: number
+): Promise<StalePendingPOs> {
+  const cutoff = new Date(Date.now() - daysThreshold * 86400_000);
+  const rows = await db
+    .select({
+      currencyCode: purchaseOrder.currencyCode,
+      total: sql<number>`coalesce(sum(${purchaseOrder.totalInCurrency}), 0)`.mapWith(Number),
+      count: sql<number>`count(*)`.mapWith(Number),
+    })
+    .from(purchaseOrder)
+    .where(
+      and(
+        eq(purchaseOrder.tenantId, tenantId),
+        inArray(purchaseOrder.status, ['placed', 'partially_received']),
+        lt(purchaseOrder.placedAt, cutoff)
+      )
+    )
+    .groupBy(purchaseOrder.currencyCode);
+
+  const count = rows.reduce((acc, r) => acc + r.count, 0);
+  return {
+    count,
+    totalInCurrencyByCode: rows.map((r) => ({ currencyCode: r.currencyCode, total: r.total })),
+  };
 }

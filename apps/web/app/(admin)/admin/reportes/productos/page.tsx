@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { KpiCard } from '../_components/KpiCard';
 import { DateRangeFilter } from '../_components/DateRangeFilter';
-import { HorizontalBarChart } from '../_components/HorizontalBarChart';
+import { VerticalBarChart } from '../_components/VerticalBarChart';
 import { parseRange, rangeLabel, toLocalInput } from '../_lib/date-range';
 import {
   getProductStats,
@@ -101,7 +101,7 @@ export default async function ProductosReportPage({
           <CardDescription>Del período seleccionado</CardDescription>
         </CardHeader>
         <CardContent>
-          <HorizontalBarChart data={topChartData} valueLabel="Unidades" />
+          <VerticalBarChart data={topChartData} valueLabel="Unidades" />
         </CardContent>
       </Card>
 
