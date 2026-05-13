@@ -22,6 +22,14 @@ export const posConfig = pgTable('pos_config', {
   showCostToAdmin: boolean('show_cost_to_admin').notNull().default(true),
   /** Bloquear ventas si stock insuficiente; false = warning permite igual. */
   strictStock: boolean('strict_stock').notNull().default(false),
+  /**
+   * Fórmula para calcular el margen sobre costo/precio.
+   * - 'markup'  (default): margen = (precio − costo) / costo × 100
+   *   → costo 35, venta 70 → margen 100%
+   * - 'gross'  (sobre venta): margen = (precio − costo) / precio × 100
+   *   → costo 35, venta 70 → margen 50%
+   */
+  marginFormula: text('margin_formula').notNull().default('markup'),
   ticketPrefix: text('ticket_prefix').notNull().default('POS'),
   /** Contador atómico de tickets POS por tenant. */
   ticketCorrelative: bigint('ticket_correlative', { mode: 'number' }).notNull().default(0),

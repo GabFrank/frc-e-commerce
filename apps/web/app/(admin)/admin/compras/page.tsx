@@ -8,12 +8,51 @@ import { LocalDraftBanner } from '@/components/admin/compras/LocalDraftBanner';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ComprasPage() {
+const VALID_STATUS = ['draft', 'placed', 'received', 'partially_received', 'cancelled'] as const;
+const VALID_PAGE_SIZES = [25, 50, 100];
+
+type SearchParams = Promise<{
+  q?: string;
+  status?: string;
+  supplier?: string;
+  currency?: string;
+  page?: string;
+  pageSize?: string;
+}>;
+
+export default async function ComprasPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const tenant = await getCurrentTenant();
   if (!tenant) return null;
   const session = await requireSession();
 
-  const [pos, suppliers] = await Promise.all([listPurchaseOrders(), listSuppliers()]);
+  const sp = await searchParams;
+  const q = (sp.q ?? '').trim();
+  const status =
+    sp.status && VALID_STATUS.includes(sp.status as (typeof VALID_STATUS)[number])
+      ? sp.status
+      : 'all';
+  const supplierId = sp.supplier && sp.supplier !== 'all' ? sp.supplier : 'all';
+  const currencyCode = sp.currency && sp.currency !== 'all' ? sp.currency : 'all';
+  const pageSize = VALID_PAGE_SIZES.includes(Number(sp.pageSize))
+    ? Number(sp.pageSize)
+    : 25;
+  const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
+
+  const [{ rows, total }, suppliers] = await Promise.all([
+    listPurchaseOrders({
+      q,
+      status,
+      supplierId,
+      currencyCode,
+      page,
+      pageSize,
+    }),
+    listSuppliers(),
+  ]);
   const hasActiveSuppliers = suppliers.some((s) => s.isActive);
 
   return (
@@ -33,7 +72,13 @@ export default async function ComprasPage() {
 
       <LocalDraftBanner scopeKey={`${tenant.id}:${session.user.id}`} />
 
-      <ComprasClient initial={pos} hasActiveSuppliers={hasActiveSuppliers} />
+      <ComprasClient
+        rows={rows}
+        total={total}
+        suppliers={suppliers}
+        hasActiveSuppliers={hasActiveSuppliers}
+        filters={{ q, status, supplierId, currencyCode, page, pageSize }}
+      />
     </div>
   );
 }

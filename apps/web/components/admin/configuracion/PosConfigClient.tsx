@@ -44,6 +44,9 @@ export function PosConfigClient({
   const [searchShowImages, setSearchShowImages] = useState(initial?.searchShowImages ?? true);
   const [showCostToAdmin, setShowCostToAdmin] = useState(initial?.showCostToAdmin ?? true);
   const [strictStock, setStrictStock] = useState(initial?.strictStock ?? false);
+  const [marginFormula, setMarginFormula] = useState<'markup' | 'gross'>(
+    initial?.marginFormula === 'gross' ? 'gross' : 'markup'
+  );
   const [ticketPrefix, setTicketPrefix] = useState(initial?.ticketPrefix ?? 'POS');
   const [receiptHeader, setReceiptHeader] = useState(initial?.receiptHeader ?? '');
   const [receiptFooter, setReceiptFooter] = useState(initial?.receiptFooter ?? '');
@@ -72,6 +75,7 @@ export function PosConfigClient({
         searchShowImages,
         showCostToAdmin,
         strictStock,
+        marginFormula,
         ticketPrefix,
         receiptHeader: receiptHeader || undefined,
         receiptFooter: receiptFooter || undefined,
@@ -220,6 +224,46 @@ export function PosConfigClient({
                 </div>
               </div>
               <Switch checked={strictStock} onCheckedChange={setStrictStock} />
+            </div>
+            <div className="space-y-1.5 border-t pt-3">
+              <div className="text-sm font-medium">Fórmula del margen</div>
+              <div className="text-xs text-muted-foreground">
+                Cómo calcular el % de margen sobre costo y precio de venta.
+              </div>
+              <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+                <label className={`cursor-pointer rounded-md border p-2 text-sm ${
+                  marginFormula === 'markup' ? 'border-primary bg-primary/5' : ''
+                }`}>
+                  <input
+                    type="radio"
+                    name="margin-formula"
+                    value="markup"
+                    checked={marginFormula === 'markup'}
+                    onChange={() => setMarginFormula('markup')}
+                    className="mr-2"
+                  />
+                  <strong>Markup (sobre costo)</strong>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    % que se suma al costo. Costo 35, venta 70 → <strong>100%</strong>.
+                  </div>
+                </label>
+                <label className={`cursor-pointer rounded-md border p-2 text-sm ${
+                  marginFormula === 'gross' ? 'border-primary bg-primary/5' : ''
+                }`}>
+                  <input
+                    type="radio"
+                    name="margin-formula"
+                    value="gross"
+                    checked={marginFormula === 'gross'}
+                    onChange={() => setMarginFormula('gross')}
+                    className="mr-2"
+                  />
+                  <strong>Gross (sobre venta)</strong>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    % que la ganancia representa sobre el precio. Costo 35, venta 70 → <strong>50%</strong>.
+                  </div>
+                </label>
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -164,3 +164,45 @@ export const purchaseExtraCostManualSplit = pgTable(
 
 export type PurchaseExtraCostManualSplit = typeof purchaseExtraCostManualSplit.$inferSelect;
 export type NewPurchaseExtraCostManualSplit = typeof purchaseExtraCostManualSplit.$inferInsert;
+
+// ── supplier_product_variant ─────────────────────────────────────────────────
+// Vínculo proveedor↔variante con último costo de compra. Se materializa al recibir
+// la PO. Persiste como histórico incluso si la PO se cancela después; se actualiza
+// solo cuando llega una recepción posterior.
+
+export const supplierProductVariant = pgTable(
+  'supplier_product_variant',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    supplierId: uuid('supplier_id')
+      .notNull()
+      .references(() => supplier.id, { onDelete: 'cascade' }),
+    variantId: uuid('variant_id')
+      .notNull()
+      .references(() => productVariant.id, { onDelete: 'cascade' }),
+    /** Último costo unitario en minor units de currencyCode */
+    lastUnitCostInCurrency: bigint('last_unit_cost_in_currency', { mode: 'number' }).notNull(),
+    currencyCode: text('currency_code').notNull(),
+    exchangeRateSnapshot: numeric('exchange_rate_snapshot', { precision: 18, scale: 8 }),
+    /** Costo en moneda primary del tenant (post-conversión) */
+    lastUnitCostInPrimary: bigint('last_unit_cost_in_primary', { mode: 'number' }),
+    lastPurchaseOrderId: uuid('last_purchase_order_id').references(() => purchaseOrder.id, {
+      onDelete: 'set null',
+    }),
+    lastReceivedAt: timestamp('last_received_at'),
+    totalQuantityPurchased: integer('total_quantity_purchased').notNull().default(0),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueSupplierVariant: unique('uq_supplier_variant').on(t.supplierId, t.variantId),
+    tenantSupplierIdx: index('idx_supv_tenant_supplier').on(t.tenantId, t.supplierId),
+    variantIdx: index('idx_supv_variant').on(t.variantId),
+  })
+);
+
+export type SupplierProductVariant = typeof supplierProductVariant.$inferSelect;
+export type NewSupplierProductVariant = typeof supplierProductVariant.$inferInsert;

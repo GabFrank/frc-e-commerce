@@ -12,13 +12,18 @@ import {
 } from '@/components/ui/card';
 import { KpiCard } from '../_components/KpiCard';
 import { DateRangeFilter } from '../_components/DateRangeFilter';
-import { HorizontalBarChart } from '../_components/HorizontalBarChart';
+import { VerticalBarChart } from '../_components/VerticalBarChart';
 import { parseRange, rangeLabel, toLocalInput } from '../_lib/date-range';
 import {
   getPurchaseKpis,
   getSpendBySupplier,
   getRecentPurchaseOrders,
+  getPrimaryCurrencyCode,
 } from '../_lib/queries';
+import {
+  formatAmount,
+  getCurrencyDecimalPlaces,
+} from '@frc-e-commerce/shared-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,17 +61,21 @@ export default async function ComprasReportPage({
   const sp = await searchParams;
   const range = parseRange(sp);
 
-  const [kpis, bySupplier, recent] = await Promise.all([
+  const [primaryCurrency, kpis, bySupplier, recent] = await Promise.all([
+    getPrimaryCurrencyCode(tenant.id),
     getPurchaseKpis(tenant.id, range),
     getSpendBySupplier(tenant.id, range, 10),
     getRecentPurchaseOrders(tenant.id, range, 30),
   ]);
 
-  const fmt = (n: number) => n.toLocaleString('es-PY');
+  const dpPrimary = getCurrencyDecimalPlaces(primaryCurrency);
+  /** Convierte MINOR units de primary → string formateado en moneda primary. */
+  const fmtPrimary = (minor: number) =>
+    formatAmount(minor / Math.pow(10, dpPrimary), primaryCurrency);
 
   const chartData = bySupplier.map((s) => ({
     label: s.supplierName.slice(0, 28),
-    value: s.totalSpent,
+    value: s.totalSpent / Math.pow(10, dpPrimary),
   }));
 
   const extrasPct = kpis.totalSpent > 0 ? (kpis.totalExtras / kpis.totalSpent) * 100 : 0;
@@ -77,7 +86,15 @@ export default async function ComprasReportPage({
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Período</CardTitle>
           <CardDescription>
-            {rangeLabel(range)} · órdenes de compra creadas (excluye canceladas)
+            {rangeLabel(range)} · solo POs recibidas (con cotización a {primaryCurrency} aplicada)
+            {kpis.pendingOrdersCount > 0 && (
+              <>
+                {' · '}
+                <span className="text-amber-700 dark:text-amber-400">
+                  {kpis.pendingOrdersCount} pedida{kpis.pendingOrdersCount === 1 ? '' : 's'} sin recibir queda{kpis.pendingOrdersCount === 1 ? '' : 'n'} fuera
+                </span>
+              </>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -91,23 +108,23 @@ export default async function ComprasReportPage({
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard
-          title="Órdenes de compra"
-          value={fmt(kpis.totalOrders)}
-          description="No incluye canceladas"
+          title="Órdenes recibidas"
+          value={String(kpis.totalOrders)}
+          description="Con cotización aplicada"
         />
         <KpiCard
           title="Gasto total"
-          value={fmt(kpis.totalSpent)}
-          description="En moneda primary del tenant"
+          value={fmtPrimary(kpis.totalSpent)}
+          description={`En ${primaryCurrency} · cotización al recibir`}
         />
         <KpiCard
           title="Tamaño promedio"
-          value={fmt(kpis.avgPoSize)}
+          value={fmtPrimary(kpis.avgPoSize)}
           description="Por orden de compra"
         />
         <KpiCard
           title="Costos extras"
-          value={fmt(kpis.totalExtras)}
+          value={fmtPrimary(kpis.totalExtras)}
           description={`${extrasPct.toFixed(1)}% del gasto`}
           tone="muted"
         />
@@ -119,7 +136,7 @@ export default async function ComprasReportPage({
           <CardDescription>Por gasto total en el período</CardDescription>
         </CardHeader>
         <CardContent>
-          <HorizontalBarChart data={chartData} valueLabel="Gasto" />
+          <VerticalBarChart data={chartData} valueLabel="Gasto" />
         </CardContent>
       </Card>
 
@@ -149,8 +166,8 @@ export default async function ComprasReportPage({
                 {bySupplier.map((s) => (
                   <tr key={s.supplierId} className="border-t hover:bg-muted/30">
                     <td className="px-3 py-2 font-medium">{s.supplierName}</td>
-                    <td className="px-3 py-2 text-right font-mono">{fmt(s.orderCount)}</td>
-                    <td className="px-3 py-2 text-right font-mono">{fmt(s.totalSpent)}</td>
+                    <td className="px-3 py-2 text-right font-mono">{s.orderCount}</td>
+                    <td className="px-3 py-2 text-right font-mono">{fmtPrimary(s.totalSpent)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -209,10 +226,14 @@ export default async function ComprasReportPage({
                         : '—'}
                     </td>
                     <td className="px-3 py-2 text-right font-mono">
-                      {fmt(Number(po.totalInCurrency))} {po.currencyCode}
+                      {formatAmount(
+                        Number(po.totalInCurrency) /
+                          Math.pow(10, getCurrencyDecimalPlaces(po.currencyCode)),
+                        po.currencyCode
+                      )}
                     </td>
                     <td className="px-3 py-2 text-right font-mono">
-                      {po.totalInPrimary != null ? fmt(Number(po.totalInPrimary)) : '—'}
+                      {po.totalInPrimary != null ? fmtPrimary(Number(po.totalInPrimary)) : '—'}
                     </td>
                     <td className="px-3 py-2 text-right">
                       <Link

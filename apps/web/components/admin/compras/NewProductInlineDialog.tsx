@@ -3,7 +3,9 @@
 import { useEffect, useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
+import { getCurrencyDecimalPlaces } from '@frc-e-commerce/shared-utils';
 import { Select } from '@/components/ui/select';
 import {
   Dialog,
@@ -178,12 +180,11 @@ export function NewProductInlineDialog({
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="np-price">Precio base ({primaryCurrencyCode})</Label>
-                    <Input
+                    <MoneyInput
                       id="np-price"
-                      type="number"
-                      min={0}
-                      value={basePrice || ''}
-                      onChange={(e) => setBasePrice(Number(e.target.value) || 0)}
+                      value={basePrice || null}
+                      onChange={(v) => setBasePrice(v ?? 0)}
+                      decimalPlaces={getCurrencyDecimalPlaces(primaryCurrencyCode)}
                       placeholder="0 (se define después)"
                       disabled={pending}
                     />
@@ -254,6 +255,7 @@ export function NewProductInlineDialog({
         <MatrixVariantDialog
           open
           productId={createdProductId}
+          productCurrency={primaryCurrencyCode}
           sizeCatalog={sizeCatalogFor(gender)}
           knownColors={[]}
           onClose={() => {

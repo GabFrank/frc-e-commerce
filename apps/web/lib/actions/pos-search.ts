@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, ilike, or, desc, inArray, sql } from 'drizzle-orm';
+import { and, eq, ilike, or, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import {
@@ -15,11 +15,34 @@ export type PosSearchResultProduct = {
   productId: string;
   name: string;
   basePrice: number;
+  /** Moneda en la que están denominados basePrice/priceMin/priceMax y los precios de variantes. */
+  currency: string;
   imageUrl: string | null;
   variantCount: number;
-  /** Si tiene una sola variante, su info para shortcut directo al detalle */
+  /** Stock sumado de las variantes reales (excluye Default-dummy si hay siblings). */
+  totalStock: number;
+  /** Rango de precio de las variantes reales. null si no hay variantes con precio > 0. */
+  priceMin: number | null;
+  priceMax: number | null;
+  /** Si tiene una sola variante real, su info para shortcut directo al detalle */
   singleVariant: PosVariantOption | null;
 };
+
+/**
+ * Filtra la variante "Default" auto-creada (color=null, size=null, name='Default')
+ * cuando el producto tiene otras variantes con atributos reales. La invariante
+ * `createProduct` siempre crea una Default — pero deja de tener sentido vender
+ * por ese SKU si ya hay variantes específicas.
+ */
+function filterOutDummyDefaults<
+  T extends { color: string | null; size: string | null; name: string }
+>(variants: T[]): T[] {
+  const hasRealAttrs = variants.some((v) => v.color !== null || v.size !== null);
+  if (!hasRealAttrs) return variants;
+  return variants.filter(
+    (v) => !(v.color === null && v.size === null && v.name === 'Default')
+  );
+}
 
 const searchSchema = z.object({
   query: z.string().trim().min(1).max(200),
@@ -46,6 +69,7 @@ export async function posSearchProducts(input: z.infer<typeof searchSchema>): Pr
         id: product.id,
         name: product.name,
         basePrice: product.basePrice,
+        currency: product.currency,
       })
       .from(product)
       .where(
@@ -63,6 +87,7 @@ export async function posSearchProducts(input: z.infer<typeof searchSchema>): Pr
         id: product.id,
         name: product.name,
         basePrice: product.basePrice,
+        currency: product.currency,
       })
       .from(productVariant)
       .innerJoin(product, eq(productVariant.productId, product.id))
@@ -77,7 +102,7 @@ export async function posSearchProducts(input: z.infer<typeof searchSchema>): Pr
       .limit(parsed.limit);
 
     // Merge unique
-    const productMap = new Map<string, { id: string; name: string; basePrice: number }>();
+    const productMap = new Map<string, { id: string; name: string; basePrice: number; currency: string }>();
     for (const p of [...productsByName, ...productsByVariant]) productMap.set(p.id, p);
     const productIds = Array.from(productMap.keys());
     if (productIds.length === 0) return { ok: true, results: [] };
@@ -133,8 +158,17 @@ export async function posSearchProducts(input: z.infer<typeof searchSchema>): Pr
     // Construir resultados
     const results: PosSearchResultProduct[] = [];
     for (const p of productMap.values()) {
-      const vList = variantsByProduct.get(p.id) ?? [];
+      const rawList = variantsByProduct.get(p.id) ?? [];
+      const vList = filterOutDummyDefaults(rawList);
       const productImg = imageByProduct.get(p.id) ?? null;
+      const totalStock = vList.reduce((acc, v) => acc + (v.stock ?? 0), 0);
+      const pricedVariants = vList.filter((v) => v.price > 0);
+      const priceMin = pricedVariants.length
+        ? Math.min(...pricedVariants.map((v) => v.price))
+        : null;
+      const priceMax = pricedVariants.length
+        ? Math.max(...pricedVariants.map((v) => v.price))
+        : null;
       const single: PosVariantOption | null =
         vList.length === 1 && vList[0]
           ? {
@@ -152,6 +186,7 @@ export async function posSearchProducts(input: z.infer<typeof searchSchema>): Pr
                 vList[0].attributes ?? {}
               ),
               price: vList[0].price,
+              currency: p.currency,
               stock: vList[0].stock,
               imageUrl: productImg,
             }
@@ -160,8 +195,12 @@ export async function posSearchProducts(input: z.infer<typeof searchSchema>): Pr
         productId: p.id,
         name: p.name,
         basePrice: p.basePrice,
+        currency: p.currency,
         imageUrl: productImg,
         variantCount: vList.length,
+        totalStock,
+        priceMin,
+        priceMax,
         singleVariant: single,
       });
     }
@@ -185,6 +224,7 @@ export type PosVariantOption = {
   sizeKind: string | null;
   attributesLabel: string;
   price: number;
+  currency: string;
   stock: number;
   imageUrl: string | null;
 };
@@ -198,13 +238,13 @@ export async function getProductVariants(productId: string): Promise<{
     await requireSessionCapability(tenantId, 'pos.sell');
 
     const [p] = await db
-      .select({ id: product.id, name: product.name })
+      .select({ id: product.id, name: product.name, currency: product.currency })
       .from(product)
       .where(and(eq(product.id, productId), eq(product.tenantId, tenantId)))
       .limit(1);
     if (!p) return { ok: false, error: 'Producto no encontrado' };
 
-    const variants = await db
+    const rawVariants = await db
       .select({
         variantId: productVariant.id,
         sku: productVariant.sku,
@@ -224,6 +264,8 @@ export async function getProductVariants(productId: string): Promise<{
         )
       )
       .orderBy(productVariant.color, productVariant.size, productVariant.name);
+
+    const variants = filterOutDummyDefaults(rawVariants);
 
     // Imágenes por variante
     const images = await db
@@ -258,6 +300,7 @@ export async function getProductVariants(productId: string): Promise<{
         sizeKind: v.sizeKind,
         attributesLabel: formatVariantLabel(v.color, v.size, v.attributes ?? {}),
         price: v.price,
+        currency: p.currency,
         stock: v.stock,
         imageUrl: imageByVariant.get(v.variantId) ?? defaultImg,
       })),

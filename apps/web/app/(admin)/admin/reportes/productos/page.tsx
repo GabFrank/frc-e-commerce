@@ -12,13 +12,14 @@ import {
 } from '@/components/ui/card';
 import { KpiCard } from '../_components/KpiCard';
 import { DateRangeFilter } from '../_components/DateRangeFilter';
-import { HorizontalBarChart } from '../_components/HorizontalBarChart';
+import { VerticalBarChart } from '../_components/VerticalBarChart';
 import { parseRange, rangeLabel, toLocalInput } from '../_lib/date-range';
 import {
   getProductStats,
   getTopProducts,
   getLowStockVariants,
 } from '../_lib/queries';
+import { formatNumber } from '@frc-e-commerce/shared-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +49,7 @@ export default async function ProductosReportPage({
     getLowStockVariants(tenant.id, LOW_STOCK_THRESHOLD, 50),
   ]);
 
-  const fmt = (n: number) => n.toLocaleString('es-PY');
+  const fmt = (n: number) => formatNumber(n, 0);
 
   const topChartData = topProducts.slice(0, 10).map((p) => ({
     label: [p.productName, p.color, p.size].filter(Boolean).join(' · ').slice(0, 32),
@@ -100,7 +101,7 @@ export default async function ProductosReportPage({
           <CardDescription>Del período seleccionado</CardDescription>
         </CardHeader>
         <CardContent>
-          <HorizontalBarChart data={topChartData} valueLabel="Unidades" />
+          <VerticalBarChart data={topChartData} valueLabel="Unidades" />
         </CardContent>
       </Card>
 

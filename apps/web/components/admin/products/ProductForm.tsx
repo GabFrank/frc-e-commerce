@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm, type SubmitHandler } from 'react-hook-form';
+import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { getCurrencyDecimalPlaces } from '@frc-e-commerce/shared-utils';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,6 +48,7 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
     handleSubmit,
     setValue,
     watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<ProductFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -215,12 +218,18 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
           {/* Precio base */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="basePrice">Precio base (centavos)</Label>
-              <Input
-                id="basePrice"
-                type="number"
-                min={1}
-                {...register('basePrice', { valueAsNumber: true })}
+              <Label htmlFor="basePrice">Precio base</Label>
+              <Controller
+                control={control}
+                name="basePrice"
+                render={({ field }) => (
+                  <MoneyInput
+                    id="basePrice"
+                    value={field.value ?? null}
+                    onChange={(v) => field.onChange(v ?? 0)}
+                    decimalPlaces={getCurrencyDecimalPlaces(watch('currency') ?? 'PYG')}
+                  />
+                )}
               />
               {errors.basePrice && (
                 <p className="text-xs text-destructive">{errors.basePrice.message}</p>

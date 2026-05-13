@@ -1,44 +1,208 @@
 import Link from 'next/link';
-import { eq, desc, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, ilike, inArray, lte, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { product, productVariant } from '@frc-e-commerce/db/schema';
+import { product, productVariant, productImage } from '@frc-e-commerce/db/schema';
 import { requireTenantId } from '@/lib/tenant';
 import { Button } from '@/components/ui/button';
-import { ProductStatusBadge } from '@/components/admin/products/ProductStatusBadge';
+import {
+  ProductsListClient,
+  type ProductRow,
+  type ProductsFilters,
+} from '@/components/admin/products/ProductsListClient';
 
-export default async function ProductsPage() {
+const VALID_STATUS = ['active', 'draft', 'archived'] as const;
+const VALID_GENDER = ['masculino', 'femenino', 'unisex', 'infantil'] as const;
+const VALID_PAGE_SIZES = [25, 50, 100];
+
+type SearchParams = Promise<{
+  q?: string;
+  status?: string;
+  stock?: string;
+  gender?: string;
+  page?: string;
+  pageSize?: string;
+}>;
+
+export default async function ProductsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const tenantId = await requireTenantId();
+  const params = await searchParams;
 
-  // Fetch products with aggregated variant count and total stock
+  // Parse + validate
+  const q = (params.q ?? '').trim();
+  const status = params.status && VALID_STATUS.includes(params.status as (typeof VALID_STATUS)[number])
+    ? params.status
+    : 'all';
+  const stock = params.stock === 'with' || params.stock === 'without' ? params.stock : 'all';
+  const gender = params.gender && VALID_GENDER.includes(params.gender as (typeof VALID_GENDER)[number])
+    ? params.gender
+    : 'all';
+  const pageSize = VALID_PAGE_SIZES.includes(Number(params.pageSize))
+    ? Number(params.pageSize)
+    : 25;
+  const page = Math.max(1, parseInt(params.page ?? '1', 10) || 1);
+
+  // ── WHERE: filtros directos sobre product (q, status, gender) ────────────────
+  const conditions = [eq(product.tenantId, tenantId)];
+  if (q) {
+    // Match en name/slug O en SKU de alguna variante.
+    const variantMatch = db
+      .select({ id: productVariant.productId })
+      .from(productVariant)
+      .where(
+        and(
+          eq(productVariant.tenantId, tenantId),
+          ilike(productVariant.sku, `%${q}%`)
+        )
+      );
+    conditions.push(
+      or(
+        ilike(product.name, `%${q}%`),
+        ilike(product.slug, `%${q}%`),
+        inArray(product.id, variantMatch)
+      )!
+    );
+  }
+  if (status !== 'all') {
+    conditions.push(eq(product.status, status as (typeof VALID_STATUS)[number]));
+  }
+  if (gender !== 'all') {
+    conditions.push(eq(product.gender, gender as (typeof VALID_GENDER)[number]));
+  }
+
+  // Filtro de stock: usa subquery sobre productVariant agregado.
+  // Calculamos stock por producto y filtramos en HAVING via subquery.
+  if (stock !== 'all') {
+    const stockAggregate = db
+      .select({
+        productId: productVariant.productId,
+        totalStock: sql<number>`cast(coalesce(sum(${productVariant.stock}), 0) as int)`.as(
+          'total_stock'
+        ),
+      })
+      .from(productVariant)
+      .where(eq(productVariant.tenantId, tenantId))
+      .groupBy(productVariant.productId)
+      .as('stock_agg');
+    if (stock === 'with') {
+      // Productos cuyo stock total > 0
+      const idsWithStock = db
+        .select({ id: stockAggregate.productId })
+        .from(stockAggregate)
+        .where(gt(stockAggregate.totalStock, 0));
+      conditions.push(inArray(product.id, idsWithStock));
+    } else {
+      // Sin stock: stock_agg <= 0 O sin filas en agregado (producto sin variantes)
+      const idsNoStock = db
+        .select({ id: stockAggregate.productId })
+        .from(stockAggregate)
+        .where(lte(stockAggregate.totalStock, 0));
+      conditions.push(
+        or(
+          inArray(product.id, idsNoStock),
+          sql`${product.id} NOT IN (SELECT product_id FROM ${productVariant} WHERE tenant_id = ${tenantId})`
+        )!
+      );
+    }
+  }
+
+  const whereClause = and(...conditions);
+
+  // ── Count total para paginación ───────────────────────────────────────────────
+  const [{ value: total }] = await db
+    .select({ value: sql<number>`cast(count(*) as int)` })
+    .from(product)
+    .where(whereClause);
+
+  // ── Productos paginados ──────────────────────────────────────────────────────
+  const offset = (page - 1) * pageSize;
   const products = await db
     .select({
       id: product.id,
       name: product.name,
       slug: product.slug,
       status: product.status,
+      gender: product.gender,
       basePrice: product.basePrice,
       currency: product.currency,
       createdAt: product.createdAt,
     })
     .from(product)
-    .where(eq(product.tenantId, tenantId))
-    .orderBy(desc(product.createdAt));
+    .where(whereClause)
+    .orderBy(desc(product.createdAt))
+    .limit(pageSize)
+    .offset(offset);
 
-  // Fetch variant summaries per product
-  const variantSummaries = await db
-    .select({
-      productId: productVariant.productId,
-      variantCount: sql<number>`cast(count(*) as int)`,
-      colorCount: sql<number>`cast(count(distinct ${productVariant.color}) filter (where ${productVariant.color} is not null) as int)`,
-      sizeCount: sql<number>`cast(count(distinct ${productVariant.size}) filter (where ${productVariant.size} is not null) as int)`,
-      totalStock: sql<number>`cast(coalesce(sum(${productVariant.stock}), 0) as int)`,
-      firstSku: sql<string>`min(${productVariant.sku})`,
-    })
-    .from(productVariant)
-    .where(eq(productVariant.tenantId, tenantId))
-    .groupBy(productVariant.productId);
+  const productIds = products.map((p) => p.id);
 
-  const summaryMap = new Map(variantSummaries.map((v) => [v.productId, v]));
+  // ── Resumen de variantes ─────────────────────────────────────────────────────
+  const summaries = productIds.length
+    ? await db
+        .select({
+          productId: productVariant.productId,
+          variantCount: sql<number>`cast(count(*) as int)`,
+          colorCount: sql<number>`cast(count(distinct ${productVariant.color}) filter (where ${productVariant.color} is not null) as int)`,
+          sizeCount: sql<number>`cast(count(distinct ${productVariant.size}) filter (where ${productVariant.size} is not null) as int)`,
+          totalStock: sql<number>`cast(coalesce(sum(${productVariant.stock}), 0) as int)`,
+          firstSku: sql<string>`min(${productVariant.sku})`,
+        })
+        .from(productVariant)
+        .where(
+          and(
+            eq(productVariant.tenantId, tenantId),
+            inArray(productVariant.productId, productIds)
+          )
+        )
+        .groupBy(productVariant.productId)
+    : [];
+  const summaryMap = new Map(summaries.map((s) => [s.productId, s]));
+
+  // ── Imagen default por producto (variantId IS NULL, menor position) ──────────
+  const defaultImages = productIds.length
+    ? await db
+        .select({
+          productId: productImage.productId,
+          url: productImage.url,
+          position: productImage.position,
+        })
+        .from(productImage)
+        .where(
+          and(
+            eq(productImage.tenantId, tenantId),
+            inArray(productImage.productId, productIds),
+            sql`${productImage.variantId} IS NULL`
+          )
+        )
+        .orderBy(productImage.position)
+    : [];
+  const imageByProduct = new Map<string, string>();
+  for (const img of defaultImages) {
+    if (!imageByProduct.has(img.productId)) imageByProduct.set(img.productId, img.url);
+  }
+
+  const rows: ProductRow[] = products.map((p) => {
+    const s = summaryMap.get(p.id);
+    return {
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      status: p.status,
+      gender: p.gender,
+      basePrice: p.basePrice,
+      currency: p.currency,
+      imageUrl: imageByProduct.get(p.id) ?? null,
+      variantCount: s?.variantCount ?? 0,
+      colorCount: s?.colorCount ?? 0,
+      sizeCount: s?.sizeCount ?? 0,
+      totalStock: s?.totalStock ?? 0,
+      firstSku: s?.firstSku ?? null,
+    };
+  });
+
+  const filters: ProductsFilters = { q, status, stock, gender, page, pageSize };
 
   return (
     <div className="space-y-6">
@@ -49,75 +213,7 @@ export default async function ProductsPage() {
         </Link>
       </div>
 
-      {products.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed p-12 text-center">
-          <p className="text-muted-foreground text-sm mb-4">Aún no hay productos. Creá el primero.</p>
-          <Link href="/admin/productos/new">
-            <Button variant="outline">+ Nuevo producto</Button>
-          </Link>
-        </div>
-      ) : (
-        <div className="border rounded-md overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-muted-foreground text-left">
-              <tr>
-                <th className="px-3 py-2">Nombre</th>
-                <th className="px-3 py-2">SKU / Variantes</th>
-                <th className="px-3 py-2">Stock total</th>
-                <th className="px-3 py-2">Precio base</th>
-                <th className="px-3 py-2">Estado</th>
-                <th className="px-3 py-2">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((p) => {
-                const summary = summaryMap.get(p.id);
-                return (
-                  <tr key={p.id} className="border-t hover:bg-muted/50 transition-colors">
-                    <td className="px-3 py-2 font-medium">{p.name}</td>
-                    <td className="px-3 py-2 text-muted-foreground">
-                      {summary ? (
-                        <div className="space-y-0.5">
-                          <div className="font-mono text-xs">{summary.firstSku}</div>
-                          <div className="text-xs text-muted-foreground/80">
-                            {summary.colorCount > 0 && summary.sizeCount > 0
-                              ? `${summary.colorCount} ${summary.colorCount === 1 ? 'color' : 'colores'} × ${summary.sizeCount} ${summary.sizeCount === 1 ? 'talle' : 'talles'} (${summary.variantCount})`
-                              : summary.colorCount > 0
-                                ? `${summary.colorCount} ${summary.colorCount === 1 ? 'color' : 'colores'} (${summary.variantCount})`
-                                : summary.sizeCount > 0
-                                  ? `${summary.sizeCount} ${summary.sizeCount === 1 ? 'talle' : 'talles'} (${summary.variantCount})`
-                                  : `${summary.variantCount} ${summary.variantCount === 1 ? 'variante' : 'variantes'}`}
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground/80">Sin variantes</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2">
-                      {summary ? summary.totalStock.toLocaleString('es-PY') : '—'}
-                    </td>
-                    <td className="px-3 py-2">
-                      {p.basePrice.toLocaleString('es-PY')}{' '}
-                      <span className="text-xs text-muted-foreground/80">{p.currency}</span>
-                    </td>
-                    <td className="px-3 py-2">
-                      <ProductStatusBadge status={p.status} />
-                    </td>
-                    <td className="px-3 py-2">
-                      <Link
-                        href={`/admin/productos/${p.id}`}
-                        className="text-primary hover:underline text-xs"
-                      >
-                        Editar
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <ProductsListClient rows={rows} total={total} filters={filters} />
     </div>
   );
 }

@@ -17,6 +17,7 @@ import {
   getSalesSeries,
   getRecentTickets,
 } from '../_lib/queries';
+import { formatNumber } from '@frc-e-commerce/shared-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +45,7 @@ export default async function VentasReportPage({
     getRecentTickets(tenant.id, range, 20),
   ]);
 
-  const fmt = (n: number) => n.toLocaleString('es-PY');
+  const fmt = (n: number) => formatNumber(n, 0);
 
   return (
     <div className="space-y-4">

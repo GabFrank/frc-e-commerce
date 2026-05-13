@@ -102,6 +102,7 @@ export default async function PosPage() {
     canChangeCurrency: hasCapability(membership.role, 'pos.change_currency'),
     canMarkComplimentary: hasCapability(membership.role, 'pos.mark_complimentary'),
     canEditPrice: hasCapability(membership.role, 'product.write'),
+    canSetRate: hasCapability(membership.role, 'currency.set_rate'),
   };
 
   // Sesión activa del cashier

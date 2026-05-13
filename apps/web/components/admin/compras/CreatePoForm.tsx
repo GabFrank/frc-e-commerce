@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Check, Package, Plus, RotateCcw, Trash2, UserPlus, X } from 'lucide-react';
+import { formatAmount, formatNumber, getCurrencyDecimalPlaces } from '@frc-e-commerce/shared-utils';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +16,7 @@ import {
   saveDraftPurchaseOrder,
   type DraftForEdit,
 } from '@/lib/actions/purchase-order';
+import { getSuggestedExchangeRate } from '@/lib/actions/currency';
 import type { Supplier } from '@frc-e-commerce/db/schema';
 import type { PurchaseVariantOption } from '@/lib/actions/purchase-search';
 import { VariantSearchPicker } from './VariantSearchPicker';
@@ -36,18 +39,20 @@ const genId = () =>
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-const fmt = (n: number) => n.toLocaleString('es-PY');
+const fmt = (n: number) => formatNumber(n, 0);
 
 export function CreatePoForm({
   suppliers: initialSuppliers,
   currencies,
   primaryCurrencyCode,
+  marginFormula,
   draftScopeKey,
   initialDraft,
 }: {
   suppliers: Supplier[];
   currencies: Currency[];
   primaryCurrencyCode: string;
+  marginFormula: 'markup' | 'gross';
   draftScopeKey: string;
   initialDraft: DraftForEdit | null;
 }) {
@@ -70,6 +75,14 @@ export function CreatePoForm({
   const [currencyCode, setCurrencyCode] = useState(
     initialDraft?.currencyCode ?? currencies[0]?.code ?? primaryCurrencyCode
   );
+  /**
+   * Cotización (cuántas unidades de la primary por 1 de la moneda elegida).
+   * Solo aplica cuando currencyCode !== primaryCurrencyCode. Cuando la
+   * moneda cambia, intentamos llenarla con el scrapper / DB; el usuario
+   * puede editarla manualmente.
+   */
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
+  const [rateSource, setRateSource] = useState<'scraper' | 'db' | 'none' | 'manual' | null>(null);
   const [notes, setNotes] = useState(initialDraft?.notes ?? '');
   const [lines, setLines] = useState<Line[]>(initialDraft?.lines ?? []);
   const [extras, setExtras] = useState<ExtraDraft[]>(initialDraft?.extras ?? []);
@@ -89,6 +102,31 @@ export function CreatePoForm({
   useEffect(() => {
     save({ supplierId, currencyCode, notes, lines, extras });
   }, [supplierId, currencyCode, notes, lines, extras, save]);
+
+  // Al cambiar la moneda, sugerir cotización (scraper → DB → manual).
+  // Si la moneda elegida es la primary, no hay nada que sugerir.
+  useEffect(() => {
+    if (currencyCode === primaryCurrencyCode) {
+      setExchangeRate(null);
+      setRateSource(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const res = await getSuggestedExchangeRate(currencyCode);
+      if (cancelled) return;
+      if (res && res.value > 0) {
+        setExchangeRate(res.value);
+        setRateSource(res.source);
+      } else {
+        setExchangeRate(null);
+        setRateSource('none');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currencyCode, primaryCurrencyCode]);
 
   const recoverDraft = () => {
     if (!draftFound) return;
@@ -118,10 +156,28 @@ export function CreatePoForm({
       const next: Line[] = [...prev];
       for (const v of variants) {
         if (existing.has(v.variantId)) continue;
-        const suggestedCost =
-          v.lastUnitCost && v.lastUnitCost.currencyCode === currencyCode
-            ? v.lastUnitCost.value
-            : 0;
+        // Pre-fill costo: si la moneda matchea, usamos el último valor crudo.
+        // Si el último estaba en primary y la PO actual es no-primary (o viceversa),
+        // intentamos convertir con exchangeRate. Para combinaciones cruzadas
+        // (último en otra moneda no-primary), preferimos no inventar conversión.
+        let suggestedCost = 0;
+        if (v.lastUnitCost) {
+          if (v.lastUnitCost.currencyCode === currencyCode) {
+            suggestedCost = v.lastUnitCost.value;
+          } else if (
+            v.lastUnitCost.currencyCode === primaryCurrencyCode &&
+            currencyCode !== primaryCurrencyCode &&
+            exchangeRate &&
+            exchangeRate > 0
+          ) {
+            suggestedCost = v.lastUnitCost.value / exchangeRate;
+          } else if (
+            currencyCode === primaryCurrencyCode &&
+            v.lastUnitCost.currencyCode !== primaryCurrencyCode
+          ) {
+            // Último en una moneda extranjera; no convertimos sin tener su rate.
+          }
+        }
         next.push({
           id: genId(),
           variant: v,
@@ -342,6 +398,39 @@ export function CreatePoForm({
                 ))}
               </Select>
             </div>
+
+            {currencyCode !== primaryCurrencyCode && (
+              <div className="space-y-1.5 md:col-span-2">
+                <Label htmlFor="po-rate">
+                  Cotización ({currencyCode} → {primaryCurrencyCode})
+                </Label>
+                <div className="flex items-center gap-2">
+                  <MoneyInput
+                    id="po-rate"
+                    value={exchangeRate}
+                    onChange={(v) => {
+                      setExchangeRate(v);
+                      setRateSource('manual');
+                    }}
+                    decimalPlaces={getCurrencyDecimalPlaces(primaryCurrencyCode)}
+                    placeholder="0"
+                    className="max-w-xs"
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {rateSource === 'scraper' && '🌐 cotización del día'}
+                    {rateSource === 'db' && '💾 última guardada'}
+                    {rateSource === 'manual' && '✎ manual'}
+                    {rateSource === 'none' && (
+                      <span className="text-amber-700">⚠ sin cotización — ingresá manual</span>
+                    )}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Cuántos {primaryCurrencyCode} por 1 {currencyCode}. Se usa para mostrar el
+                  equivalente del costo unitario debajo del input.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -386,6 +475,8 @@ export function CreatePoForm({
                       line={line}
                       currencyCode={currencyCode}
                       primaryCurrencyCode={primaryCurrencyCode}
+                      exchangeRate={exchangeRate}
+                      marginFormula={marginFormula}
                       onChange={(patch) =>
                         setLines((prev) =>
                           prev.map((x) => (x.id === line.id ? { ...x, ...patch } : x))
@@ -440,17 +531,16 @@ export function CreatePoForm({
                     placeholder="Descripción (flete, aduana, etc.)"
                     className="h-9 text-sm"
                   />
-                  <Input
-                    type="number"
-                    min={0}
-                    value={e.amount || ''}
-                    onChange={(ev) =>
+                  <MoneyInput
+                    value={e.amount || null}
+                    onChange={(v) =>
                       setExtras((prev) =>
                         prev.map((x) =>
-                          x.id === e.id ? { ...x, amount: Number(ev.target.value) || 0 } : x
+                          x.id === e.id ? { ...x, amount: v ?? 0 } : x
                         )
                       )
                     }
+                    decimalPlaces={getCurrencyDecimalPlaces(currencyCode)}
                     className="h-9 w-32 text-right text-sm"
                     placeholder="Monto"
                   />
@@ -503,15 +593,15 @@ export function CreatePoForm({
             <div className="rounded-md border bg-muted/40 p-3 text-sm">
               <div className="flex justify-between">
                 <span>Subtotal líneas</span>
-                <span className="font-mono">{fmt(subtotal)}</span>
+                <span className="font-mono">{formatAmount(subtotal, currencyCode)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Extras</span>
-                <span className="font-mono">{fmt(extrasTotal)}</span>
+                <span className="font-mono">{formatAmount(extrasTotal, currencyCode)}</span>
               </div>
               <div className="mt-2 flex justify-between border-t pt-2 text-base font-medium">
-                <span>Total ({currencyCode})</span>
-                <span className="font-mono">{fmt(total)}</span>
+                <span>Total</span>
+                <span className="font-mono">{formatAmount(total, currencyCode)}</span>
               </div>
             </div>
 
@@ -622,42 +712,23 @@ function LineRow({
   line,
   currencyCode,
   primaryCurrencyCode,
+  exchangeRate,
+  marginFormula,
   onChange,
   onRemove,
 }: {
   line: Line;
   currencyCode: string;
   primaryCurrencyCode: string;
+  exchangeRate: number | null;
+  marginFormula: 'markup' | 'gross';
   onChange: (patch: Partial<Line>) => void;
   onRemove: () => void;
 }) {
   const v = line.variant;
 
-  // Sugerencias: solo aplicables si la currency matchea (último cost en misma currency, o avg en primary).
-  const suggestions: Array<{ label: string; value: number; title: string }> = [];
-  if (v.lastUnitCost && v.lastUnitCost.currencyCode === currencyCode) {
-    const dateStr = v.lastUnitCost.receivedAt
-      ? new Date(v.lastUnitCost.receivedAt).toLocaleDateString('es-PY', {
-          day: '2-digit',
-          month: 'short',
-        })
-      : '';
-    suggestions.push({
-      label: `${fmt(v.lastUnitCost.value)}`,
-      value: v.lastUnitCost.value,
-      title: `Último costo${dateStr ? ` (${dateStr})` : ''} — click para aplicar`,
-    });
-  }
-  if (v.avgCostInPrimary > 0 && currencyCode === primaryCurrencyCode) {
-    suggestions.push({
-      label: `avg ${fmt(v.avgCostInPrimary)}`,
-      value: v.avgCostInPrimary,
-      title: 'Costo promedio ponderado — click para aplicar',
-    });
-  }
-
   return (
-    <div className="flex items-center gap-2 px-3 py-2 text-sm">
+    <div className="flex items-start gap-2 px-3 py-2 text-sm">
       {v.imageUrl ? (
         <Image
           src={v.imageUrl}
@@ -685,6 +756,27 @@ function LineRow({
               {v.size}
             </span>
           )}
+          {v.linkedSuppliers.length > 0 && (
+            <span
+              className="cursor-help rounded border bg-muted/40 px-1 py-0 text-[10px] text-muted-foreground"
+              title={v.linkedSuppliers
+                .map(
+                  (s) =>
+                    `${s.supplierName}: ${formatAmount(s.lastUnitCost, s.currencyCode)}` +
+                    (s.lastReceivedAt
+                      ? ` · ${new Date(s.lastReceivedAt).toLocaleDateString('es-PY', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: '2-digit',
+                        })}`
+                      : '')
+                )
+                .join('\n')}
+            >
+              {v.linkedSuppliers.length}{' '}
+              {v.linkedSuppliers.length === 1 ? 'proveedor' : 'proveedores'}
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-x-2 font-mono text-[11px] text-muted-foreground">
           <span className="truncate">{v.sku}</span>
@@ -705,33 +797,52 @@ function LineRow({
       />
 
       <div className="flex shrink-0 flex-col items-stretch gap-0.5">
-        <Input
-          type="number"
-          min={0}
-          value={line.unitCost || ''}
-          onChange={(e) => onChange({ unitCost: Number(e.target.value) || 0 })}
-          onFocus={(e) => e.currentTarget.select()}
+        <MoneyInput
+          value={line.unitCost || null}
+          onChange={(v) => onChange({ unitCost: v ?? 0 })}
+          decimalPlaces={getCurrencyDecimalPlaces(currencyCode)}
           onKeyDown={handlePoInputKeyDown}
           data-po-input="cost"
-          aria-label={`Costo unitario en ${currencyCode}`}
           placeholder={`Costo ${currencyCode}`}
           className="h-8 w-28 text-right font-mono text-sm"
         />
-        {suggestions.length > 0 && (
-          <div className="flex justify-end gap-1">
-            {suggestions.map((s, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => onChange({ unitCost: s.value })}
-                title={s.title}
-                className="rounded bg-muted/40 px-1 py-0 text-[10px] text-muted-foreground hover:bg-muted hover:text-primary"
-              >
-                {s.label}
-              </button>
-            ))}
+        {currencyCode !== primaryCurrencyCode && exchangeRate && exchangeRate > 0 && line.unitCost > 0 && (
+          <div className="flex justify-end text-[10px] text-muted-foreground">
+            ≈ {formatAmount(line.unitCost * exchangeRate, primaryCurrencyCode)}
           </div>
         )}
+        {v.lastUnitCost &&
+          (() => {
+            const canApply = v.lastUnitCost.currencyCode === currencyCode;
+            const dateLabel = v.lastUnitCost.receivedAt
+              ? new Date(v.lastUnitCost.receivedAt).toLocaleDateString('es-PY', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: '2-digit',
+                })
+              : null;
+            const content = (
+              <>
+                Último:{' '}
+                <strong className="text-foreground">
+                  {formatAmount(v.lastUnitCost.value, v.lastUnitCost.currencyCode)}
+                </strong>
+                {dateLabel && <> · {dateLabel}</>}
+              </>
+            );
+            return canApply ? (
+              <button
+                type="button"
+                onClick={() => onChange({ unitCost: v.lastUnitCost!.value })}
+                title="Click para aplicar al costo"
+                className="text-right text-[10px] text-muted-foreground hover:text-primary hover:underline"
+              >
+                {content}
+              </button>
+            ) : (
+              <div className="text-right text-[10px] text-muted-foreground">{content}</div>
+            );
+          })()}
       </div>
 
       <SellPriceCell
@@ -745,6 +856,8 @@ function LineRow({
         line={line}
         currencyCode={currencyCode}
         primaryCurrencyCode={primaryCurrencyCode}
+        exchangeRate={exchangeRate}
+        marginFormula={marginFormula}
       />
 
       <div className="w-24 shrink-0 text-right font-mono text-sm">
@@ -779,56 +892,48 @@ function SellPriceCell({
 }) {
   const v = line.variant;
   const current = v.currentSellPrice;
-  // El input usa "" cuando sellPrice es null para distinguir "sin cambio" de "0"
-  const inputValue = line.sellPrice == null ? '' : String(line.sellPrice);
   const hasNewPrice = line.sellPrice != null && line.sellPrice !== current;
   const sameCurrency = currencyCode === primaryCurrencyCode;
 
   return (
     <div className="flex shrink-0 flex-col items-stretch gap-0.5">
-      <Input
-        type="number"
-        min={0}
-        value={inputValue}
-        onChange={(e) =>
-          onChange({
-            sellPrice: e.target.value === '' ? null : Number(e.target.value) || 0,
-          })
-        }
-        onFocus={(e) => e.currentTarget.select()}
+      <MoneyInput
+        value={line.sellPrice}
+        onChange={(v) => onChange({ sellPrice: v })}
+        decimalPlaces={getCurrencyDecimalPlaces(primaryCurrencyCode)}
         onKeyDown={handlePoInputKeyDown}
         data-po-input="sellPrice"
-        aria-label={`Precio de venta en ${primaryCurrencyCode}`}
         placeholder="(sin cambio)"
-        title={
-          sameCurrency
-            ? 'Si lo dejás vacío, el precio actual no se modifica al recibir.'
-            : `Precio en ${primaryCurrencyCode} — moneda primary del tenant.`
-        }
         className={`h-8 w-28 text-right font-mono text-sm ${
           hasNewPrice ? 'border-primary/60' : ''
         }`}
       />
-      {current > 0 && (
-        <div className="flex justify-end text-[10px] text-muted-foreground">
-          {hasNewPrice ? (
-            <span className="font-mono">
-              <span className="line-through opacity-60">{fmt(current)}</span>
-              <span className="mx-0.5">→</span>
-              <span className="font-semibold text-primary">{fmt(line.sellPrice!)}</span>
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={() => onChange({ sellPrice: current })}
-              title="Aplicar precio actual (lo hace explícito en la PO)"
-              className="rounded bg-muted/40 px-1 py-0 hover:bg-muted hover:text-primary"
-            >
-              actual: <span className="font-mono">{fmt(current)}</span>
-            </button>
-          )}
-        </div>
-      )}
+      <div className="text-[10px] text-muted-foreground" title={
+        sameCurrency
+          ? 'Si lo dejás vacío, el precio actual no se modifica al recibir.'
+          : `Precio en ${primaryCurrencyCode} — moneda primary del tenant.`
+      }>
+        {current > 0 ? (
+          <div className="flex justify-end">
+            {hasNewPrice ? (
+              <span className="font-mono">
+                <span className="line-through opacity-60">{fmt(current)}</span>
+                <span className="mx-0.5">→</span>
+                <span className="font-semibold text-primary">{fmt(line.sellPrice!)}</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onChange({ sellPrice: current })}
+                title="Aplicar precio actual (lo hace explícito en la PO)"
+                className="rounded bg-muted/40 px-1 py-0 hover:bg-muted hover:text-primary"
+              >
+                actual: <span className="font-mono">{fmt(current)}</span>
+              </button>
+            )}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -838,28 +943,35 @@ function MarginCell({
   line,
   currencyCode,
   primaryCurrencyCode,
+  exchangeRate,
+  marginFormula,
 }: {
   line: Line;
   currencyCode: string;
   primaryCurrencyCode: string;
+  exchangeRate: number | null;
+  marginFormula: 'markup' | 'gross';
 }) {
-  // Margen solo computable cuando la PO está en moneda primary (costo y precio en misma unidad).
-  if (currencyCode !== primaryCurrencyCode) {
+  // Precio efectivo (siempre en primary): el nuevo si fue seteado, sino el actual del producto.
+  const price = line.sellPrice != null ? line.sellPrice : line.variant.currentSellPrice;
+  // Costo en primary: si la PO está en otra moneda, lo convertimos con la cotización.
+  let costInPrimary: number;
+  if (currencyCode === primaryCurrencyCode) {
+    costInPrimary = line.unitCost;
+  } else if (exchangeRate && exchangeRate > 0) {
+    costInPrimary = line.unitCost * exchangeRate;
+  } else {
     return (
       <div
         className="w-16 shrink-0 text-right font-mono text-xs text-muted-foreground"
-        title="No se puede calcular: la PO está en moneda distinta a primary"
+        title="Cargá la cotización para calcular el margen en moneda primary"
       >
         —
       </div>
     );
   }
 
-  // Precio efectivo: el nuevo si fue setado, sino el actual del producto
-  const price = line.sellPrice != null ? line.sellPrice : line.variant.currentSellPrice;
-  const cost = line.unitCost;
-
-  if (price <= 0 || cost <= 0) {
+  if (price <= 0 || costInPrimary <= 0) {
     return (
       <div
         className="w-16 shrink-0 text-right font-mono text-xs text-muted-foreground"
@@ -870,7 +982,13 @@ function MarginCell({
     );
   }
 
-  const marginPct = ((price - cost) / price) * 100;
+  // markup: cuánto se le suma al costo en proporción → (precio − costo) / costo
+  // gross : qué proporción del precio es ganancia → (precio − costo) / precio
+  const marginPct =
+    marginFormula === 'markup'
+      ? ((price - costInPrimary) / costInPrimary) * 100
+      : ((price - costInPrimary) / price) * 100;
+
   const tone =
     marginPct < 0
       ? 'text-destructive'
@@ -878,11 +996,15 @@ function MarginCell({
         ? 'text-amber-600 dark:text-amber-400'
         : 'text-emerald-700 dark:text-emerald-400';
   const label = `${marginPct.toFixed(0)}%`;
+  const formulaTip =
+    marginFormula === 'markup'
+      ? 'sobre costo (markup)'
+      : 'sobre precio (gross margin)';
 
   return (
     <div
       className={`w-16 shrink-0 text-right font-mono text-sm ${tone}`}
-      title={`Margen ${marginPct.toFixed(1)}% sobre precio venta · costo ${fmt(cost)} / venta ${fmt(price)}`}
+      title={`Margen ${marginPct.toFixed(1)}% ${formulaTip} · costo ${fmt(costInPrimary)} / venta ${fmt(price)}`}
     >
       {label}
     </div>

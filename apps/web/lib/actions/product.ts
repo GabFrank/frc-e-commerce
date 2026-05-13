@@ -525,6 +525,47 @@ export async function listProductColors(productId: string): Promise<string[]> {
   }
 }
 
+export type AdminVariantRow = {
+  variantId: string;
+  sku: string;
+  name: string;
+  color: string | null;
+  size: string | null;
+  sizeKind: string | null;
+  price: number;
+  compareAtPrice: number | null;
+  stock: number;
+  active: boolean;
+};
+
+/** Variantes de un producto para la vista admin expandible (incluye archivadas). */
+export async function listProductVariantsForAdmin(productId: string): Promise<AdminVariantRow[]> {
+  try {
+    const tenantId = await guardTenant();
+    const rows = await db
+      .select({
+        variantId: productVariant.id,
+        sku: productVariant.sku,
+        name: productVariant.name,
+        color: productVariant.color,
+        size: productVariant.size,
+        sizeKind: productVariant.sizeKind,
+        price: productVariant.price,
+        compareAtPrice: productVariant.compareAtPrice,
+        stock: productVariant.stock,
+        active: productVariant.active,
+      })
+      .from(productVariant)
+      .where(
+        and(eq(productVariant.productId, productId), eq(productVariant.tenantId, tenantId))
+      )
+      .orderBy(productVariant.color, productVariant.size, productVariant.name);
+    return rows;
+  } catch {
+    return [];
+  }
+}
+
 export async function updateProductVariant(
   variantId: string,
   input: UpdateProductVariantInput

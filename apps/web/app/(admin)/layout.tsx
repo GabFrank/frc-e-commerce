@@ -37,6 +37,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       { href: '/admin/pedidos', label: 'Pedidos / Ventas', cap: 'order.view' as const },
       { href: '/admin/compras', label: 'Compras', cap: 'purchase.view' as const },
       { href: '/admin/proveedores', label: 'Proveedores', cap: 'supplier.write' as const },
+      { href: '/admin/configuracion/monedas', label: 'Cotizaciones', cap: 'currency.view' as const },
     ]
       .filter((i) => hasCapability(role, i.cap))
       .map(({ href, label }) => ({ href, label }))

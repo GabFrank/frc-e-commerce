@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { LockKeyhole } from 'lucide-react';
+import { LockKeyhole, Coins } from 'lucide-react';
 import type { TenantMemberRole } from '@frc-e-commerce/db/schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ import { CartTotals } from './CartTotals';
 import { OpenSessionDialog } from './cash/OpenSessionDialog';
 import { CloseSessionDialog } from './cash/CloseSessionDialog';
 import { CheckoutDialog } from './checkout/CheckoutDialog';
+import { QuickRateDialog } from '@/components/admin/QuickRateDialog';
 import type { PosVariantOption } from '@/lib/actions/pos-search';
 
 export type PosCurrencyContext = {
@@ -49,6 +50,7 @@ export type PosTenantContext = {
   canChangeCurrency: boolean;
   canMarkComplimentary: boolean;
   canEditPrice: boolean;
+  canSetRate: boolean;
 };
 
 export type ActiveSessionInfo = {
@@ -74,6 +76,7 @@ export function PosShell({
   const [lineDialog, setLineDialog] = useState<PosVariantOption | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(shouldAutoClose);
+  const [rateDialogOpen, setRateDialogOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const cart = usePosCart();
   const totals = calcTotal({
@@ -141,6 +144,18 @@ export function PosShell({
           )}
         </div>
         <div className="flex items-center gap-2 text-xs">
+          {ctx.canSetRate && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setRateDialogOpen(true)}
+              title="Cotizaciones"
+            >
+              <Coins className="mr-1 h-3.5 w-3.5" />
+              Cotización
+            </Button>
+          )}
           {activeSession && (
             <Button
               type="button"
@@ -240,7 +255,7 @@ export function PosShell({
 
       {/* Derecha: carrito */}
       <aside className="flex flex-col border-l bg-card overflow-hidden">
-        <PosCart canSeeCost={ctx.canSeeCost} onEditLine={(line) => {
+        <PosCart canSeeCost={ctx.canSeeCost} currency={cart.primaryCurrencyOverride ?? ctx.primaryCurrency} onEditLine={(line) => {
           // Abrir dialog de detalle prepoblado para edit
           setLineDialog({
             variantId: line.variantId,
@@ -253,6 +268,7 @@ export function PosShell({
             sizeKind: line.sizeKind,
             attributesLabel: line.attributesLabel,
             price: line.unitPrice,
+            currency: cart.primaryCurrencyOverride ?? ctx.primaryCurrency,
             stock: line.availableStock,
             imageUrl: line.imageUrl,
           });
@@ -301,6 +317,12 @@ export function PosShell({
           openCurrencies={activeSession.openCurrencies}
           ctx={ctx}
           onClose={() => setCloseOpen(false)}
+        />
+      )}
+      {ctx.canSetRate && (
+        <QuickRateDialog
+          open={rateDialogOpen}
+          onClose={() => setRateDialogOpen(false)}
         />
       )}
     </div>

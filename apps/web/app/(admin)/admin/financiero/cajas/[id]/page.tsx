@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { and, asc, desc, eq, exists, gte, ilike, lte, or, sql, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, exists, gt, gte, ilike, lte, or, sql, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { requireSession, getMembership } from '@/lib/auth/guards';
 import { getCurrentTenant } from '@/lib/tenant';
@@ -10,16 +10,19 @@ import {
   cashSessionBalance,
   cashClosure,
   cashClosureMetric,
+  cashMovement,
   order,
   orderLine,
   payment,
   paymentDetail,
   productVariant,
   product,
+  tenantCurrency,
   user,
 } from '@frc-e-commerce/db/schema';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { CajaSalesFilters } from '@/components/admin/financiero/CajaSalesFilters';
+import { formatAmount, formatNumber, getCurrencyDecimalPlaces } from '@frc-e-commerce/shared-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -128,15 +131,23 @@ export default async function CajaDetailPage({
       totalCount: sql<number>`count(*)`.mapWith(Number),
       activeCount: sql<number>`count(*) filter (where ${allSessionOrders.status} <> 'cancelled')`.mapWith(Number),
       cancelledCount: sql<number>`count(*) filter (where ${allSessionOrders.status} = 'cancelled')`.mapWith(Number),
-      sumTotalActive: sql<number>`coalesce(sum(${allSessionOrders.total}) filter (where ${allSessionOrders.status} <> 'cancelled'), 0)`.mapWith(Number),
       sumDiscountActive: sql<number>`coalesce(sum(${allSessionOrders.discountAmount}) filter (where ${allSessionOrders.status} <> 'cancelled'), 0)`.mapWith(Number),
       sumSurchargeActive: sql<number>`coalesce(sum(${allSessionOrders.surchargeAmount}) filter (where ${allSessionOrders.status} <> 'cancelled'), 0)`.mapWith(Number),
     })
     .from(allSessionOrders);
 
+  /**
+   * Total NETO de ventas de la sesión, calculado por línea para descontar
+   * devoluciones y cancelaciones parciales (que no cambian order.total).
+   * sumGross = unidades activas × precio unitario − descuento de línea
+   * (no prorrateamos descuento general por ahora — aprox. razonable).
+   */
   const [aggLines] = await db
     .select({
       activeUnits: sql<number>`coalesce(sum(${orderLine.quantity} - ${orderLine.returnedQuantity} - ${orderLine.cancelledQuantity}), 0)`.mapWith(Number),
+      returnedUnits: sql<number>`coalesce(sum(${orderLine.returnedQuantity}), 0)`.mapWith(Number),
+      cancelledUnits: sql<number>`coalesce(sum(${orderLine.cancelledQuantity}), 0)`.mapWith(Number),
+      sumGrossActive: sql<number>`coalesce(sum((${orderLine.quantity} - ${orderLine.returnedQuantity} - ${orderLine.cancelledQuantity}) * ${orderLine.unitPrice} - ${orderLine.discountAmount}), 0)`.mapWith(Number),
       lineDiscountActive: sql<number>`coalesce(sum(${orderLine.discountAmount}), 0)`.mapWith(Number),
       costActive: sql<number>`coalesce(sum(coalesce(${orderLine.costSnapshot}, 0) * (${orderLine.quantity} - ${orderLine.returnedQuantity} - ${orderLine.cancelledQuantity})), 0)`.mapWith(Number),
     })
@@ -150,7 +161,10 @@ export default async function CajaDetailPage({
       )
     );
 
-  const totalActive = aggOrders?.sumTotalActive ?? 0;
+  const totalActive =
+    (aggLines?.sumGrossActive ?? 0)
+    - (aggOrders?.sumDiscountActive ?? 0)
+    + (aggOrders?.sumSurchargeActive ?? 0);
   const totalCost = aggLines?.costActive ?? 0;
   const profit = totalActive - totalCost;
   const profitPct = totalActive > 0 ? (profit / totalActive) * 100 : 0;
@@ -158,7 +172,67 @@ export default async function CajaDetailPage({
     (aggOrders?.activeCount ?? 0) > 0
       ? Math.round(totalActive / (aggOrders!.activeCount))
       : 0;
+  const hasReturns = (aggLines?.returnedUnits ?? 0) > 0;
   const elapsed = (s.closedAt ?? new Date()).getTime() - new Date(s.openedAt).getTime();
+
+  // ── Ventas por método y moneda — suma neta (sale_in − sale_return_out − sale_cancel_out) ──
+  const salesByMethod = await db
+    .select({
+      paymentMethod: cashMovement.paymentMethod,
+      currencyCode: cashMovement.currencyCode,
+      sumAmount: sql<number>`coalesce(sum(case when ${cashMovement.kind} = 'sale_in' then ${cashMovement.amount} else -${cashMovement.amount} end), 0)`.mapWith(Number),
+      sumAmountInPrimary: sql<number>`coalesce(sum(case when ${cashMovement.kind} = 'sale_in' then ${cashMovement.amountInPrimary} else -${cashMovement.amountInPrimary} end), 0)`.mapWith(Number),
+    })
+    .from(cashMovement)
+    .where(
+      and(
+        eq(cashMovement.cashSessionId, s.id),
+        inArray(cashMovement.kind, ['sale_in', 'sale_return_out', 'sale_cancel_out'])
+      )
+    )
+    .groupBy(cashMovement.paymentMethod, cashMovement.currencyCode)
+    .orderBy(cashMovement.currencyCode, cashMovement.paymentMethod);
+
+  // Primary currency del tenant (para formatear totales)
+  const [primaryTc] = await db
+    .select({ code: tenantCurrency.currencyCode })
+    .from(tenantCurrency)
+    .where(and(eq(tenantCurrency.tenantId, tenant.id), eq(tenantCurrency.isPrimary, true)))
+    .limit(1);
+  const primaryCurrency = primaryTc?.code ?? 'PYG';
+
+  // ── Cash movements de reversa POSTERIORES al cierre ──
+  // Si la sesión está cerrada y luego hay devolución/cancelación, no se actualiza
+  // el closure (es snapshot). Listamos los movimientos posteriores para que el
+  // operador vea el ajuste real.
+  const postClosureReversals = s.closedAt
+    ? await db
+        .select({
+          id: cashMovement.id,
+          kind: cashMovement.kind,
+          currencyCode: cashMovement.currencyCode,
+          amount: cashMovement.amount,
+          amountInPrimary: cashMovement.amountInPrimary,
+          paymentMethod: cashMovement.paymentMethod,
+          createdAt: cashMovement.createdAt,
+          orderId: cashMovement.orderId,
+        })
+        .from(cashMovement)
+        .where(
+          and(
+            eq(cashMovement.cashSessionId, s.id),
+            inArray(cashMovement.kind, ['sale_return_out', 'sale_cancel_out']),
+            gt(cashMovement.createdAt, s.closedAt)
+          )
+        )
+        .orderBy(asc(cashMovement.createdAt))
+    : [];
+
+  /** Suma total (en primary) de los ajustes post-cierre — salieron de caja después del cierre. */
+  const postClosureAdjustment = postClosureReversals.reduce(
+    (acc, r) => acc + r.amountInPrimary,
+    0
+  );
 
   // ── Sales list (filters + pagination) ──
   const pageSizeParam = Number(sp.pageSize ?? DEFAULT_PAGE_SIZE);
@@ -250,6 +324,14 @@ export default async function CajaDetailPage({
       createdAt: order.createdAt,
       customerName: order.customerName,
       lineCount: sql<number>`(select count(*) from ${orderLine} where ${orderLine.orderId} = ${order.id})`.mapWith(Number),
+      returnedUnits: sql<number>`(select coalesce(sum(${orderLine.returnedQuantity}), 0) from ${orderLine} where ${orderLine.orderId} = ${order.id})`.mapWith(Number),
+      cancelledUnits: sql<number>`(select coalesce(sum(${orderLine.cancelledQuantity}), 0) from ${orderLine} where ${orderLine.orderId} = ${order.id})`.mapWith(Number),
+      // Total neto: sum((qty - returned - cancelled) * unitPrice - line.discount) − order.discount + order.surcharge
+      netTotal: sql<number>`(
+        select coalesce(sum((${orderLine.quantity} - ${orderLine.returnedQuantity} - ${orderLine.cancelledQuantity}) * ${orderLine.unitPrice} - ${orderLine.discountAmount}), 0)
+        from ${orderLine}
+        where ${orderLine.orderId} = ${order.id}
+      ) - ${order.discountAmount} + ${order.surchargeAmount}`.mapWith(Number),
     })
     .from(order)
     .where(and(...filters))
@@ -372,16 +454,22 @@ export default async function CajaDetailPage({
               <span className="font-mono">{aggOrders?.cancelledCount ?? 0}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Unidades vendidas</span>
+              <span className="text-muted-foreground">Unidades vendidas (neto)</span>
               <span className="font-mono">{aggLines?.activeUnits ?? 0}</span>
             </div>
+            {hasReturns && (
+              <div className="flex justify-between text-amber-700">
+                <span>Unidades devueltas</span>
+                <span className="font-mono">{aggLines?.returnedUnits ?? 0}</span>
+              </div>
+            )}
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Total vendido</span>
-              <span className="font-mono">{totalActive.toLocaleString('es-PY')}</span>
+              <span className="text-muted-foreground">Total vendido (neto)</span>
+              <span className="font-mono">{formatNumber(totalActive, 0)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Ticket promedio</span>
-              <span className="font-mono">{avgTicket.toLocaleString('es-PY')}</span>
+              <span className="font-mono">{formatNumber(avgTicket, 0)}</span>
             </div>
           </CardContent>
         </Card>
@@ -394,7 +482,7 @@ export default async function CajaDetailPage({
           <CardContent className="space-y-1 text-xs">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Costo</span>
-              <span className="font-mono">{totalCost.toLocaleString('es-PY')}</span>
+              <span className="font-mono">{formatNumber(totalCost, 0)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Ganancia</span>
@@ -403,7 +491,7 @@ export default async function CajaDetailPage({
                   profit > 0 ? 'text-emerald-700' : profit < 0 ? 'text-destructive' : ''
                 }`}
               >
-                {profit.toLocaleString('es-PY')}
+                {formatNumber(profit, 0)}
               </span>
             </div>
             <div className="flex justify-between">
@@ -420,12 +508,12 @@ export default async function CajaDetailPage({
           <CardContent className="space-y-1 text-xs">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Descuentos aplicados</span>
-              <span className="font-mono">{totalDiscount.toLocaleString('es-PY')}</span>
+              <span className="font-mono">{formatNumber(totalDiscount, 0)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Aumentos / redondeos</span>
               <span className="font-mono">
-                {(aggOrders?.sumSurchargeActive ?? 0).toLocaleString('es-PY')}
+                {formatNumber(aggOrders?.sumSurchargeActive ?? 0, 0)}
               </span>
             </div>
           </CardContent>
@@ -438,80 +526,109 @@ export default async function CajaDetailPage({
               Apertura, esperado, contado y diferencia por moneda
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-0">
-            <table className="w-full text-xs">
-              <thead className="border-b bg-muted/40 text-muted-foreground">
-                <tr>
-                  <th className="px-2 py-1 text-left">Moneda</th>
-                  <th className="px-2 py-1 text-right">Apertura</th>
-                  <th className="px-2 py-1 text-right">Esperado</th>
-                  <th className="px-2 py-1 text-right">Contado</th>
-                  <th className="px-2 py-1 text-right">Diff</th>
-                </tr>
-              </thead>
-              <tbody>
-                {balances.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-2 py-3 text-center text-muted-foreground">
-                      Sin balances
-                    </td>
-                  </tr>
-                )}
-                {balances.map((b) => (
-                  <tr key={b.id} className="border-t">
-                    <td className="px-2 py-1 font-mono">{b.currencyCode}</td>
-                    <td className="px-2 py-1 text-right font-mono">
-                      {Number(b.openingDeclared).toLocaleString('es-PY')}
-                    </td>
-                    <td className="px-2 py-1 text-right font-mono">
-                      {b.expected != null ? Number(b.expected).toLocaleString('es-PY') : '—'}
-                    </td>
-                    <td className="px-2 py-1 text-right font-mono">
-                      {b.countedDeclared != null
-                        ? Number(b.countedDeclared).toLocaleString('es-PY')
+          {postClosureReversals.length > 0 && (
+            <div className="mx-4 mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+              <div className="font-medium">⚠ Ajustes posteriores al cierre</div>
+              <div className="mt-0.5">
+                Hubo {postClosureReversals.length} {postClosureReversals.length === 1 ? 'devolución/cancelación' : 'devoluciones/cancelaciones'} por{' '}
+                <strong>{formatAmount(postClosureAdjustment, primaryCurrency)}</strong> después del cierre.
+                Los valores del conteo abajo son el snapshot histórico — no se actualizan.
+              </div>
+            </div>
+          )}
+          <CardContent className="space-y-2 px-4 pb-4">
+            {balances.length === 0 && (
+              <div className="rounded-md border border-dashed py-3 text-center text-xs text-muted-foreground">
+                Sin balances
+              </div>
+            )}
+            {balances.map((b) => {
+              // Los valores en DB están en unidades mínimas — convertimos a mayor para display.
+              const dp = getCurrencyDecimalPlaces(b.currencyCode);
+              const toMajor = (v: number | string | null | undefined) =>
+                v == null ? null : Number(v) / Math.pow(10, dp);
+              const openingMajor = toMajor(b.openingDeclared) ?? 0;
+              const expectedMajor = toMajor(b.expected);
+              const countedMajor = toMajor(b.countedDeclared);
+              const diffMajor = toMajor(b.diff);
+              const diffColor =
+                diffMajor === null
+                  ? 'text-muted-foreground'
+                  : diffMajor === 0
+                    ? 'text-emerald-700'
+                    : diffMajor > 0
+                      ? 'text-emerald-700'
+                      : 'text-destructive';
+              return (
+                <div key={b.id} className="rounded-md border p-2 text-xs">
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="font-mono font-medium">{b.currencyCode}</span>
+                    {diffMajor !== null && (
+                      <span className={`font-mono font-medium ${diffColor}`}>
+                        {diffMajor > 0 ? '+' : ''}
+                        {formatAmount(diffMajor, b.currencyCode)}
+                        {diffMajor === 0 && ' ✓'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-muted-foreground">
+                    <span>Apertura</span>
+                    <span className="text-right font-mono text-foreground">
+                      {formatAmount(openingMajor, b.currencyCode)}
+                    </span>
+                    <span>Esperado</span>
+                    <span className="text-right font-mono text-foreground">
+                      {expectedMajor != null
+                        ? formatAmount(expectedMajor, b.currencyCode)
                         : '—'}
-                    </td>
-                    <td
-                      className={`px-2 py-1 text-right font-mono ${
-                        (Number(b.diff ?? 0)) === 0
-                          ? 'text-muted-foreground'
-                          : (Number(b.diff ?? 0)) > 0
-                            ? 'text-emerald-700'
-                            : 'text-destructive'
-                      }`}
-                    >
-                      {b.diff != null
-                        ? `${Number(b.diff) > 0 ? '+' : ''}${Number(b.diff).toLocaleString('es-PY')}`
+                    </span>
+                    <span>Contado</span>
+                    <span className="text-right font-mono text-foreground">
+                      {countedMajor != null
+                        ? formatAmount(countedMajor, b.currencyCode)
                         : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
 
-        {metrics.filter((m) => m.metric === 'sales').length > 0 && (
+        {salesByMethod.length > 0 && (
           <Card className="mb-3">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Ventas por método</CardTitle>
-              <CardDescription className="text-xs">Del cierre</CardDescription>
+              <CardDescription className="text-xs">
+                Neto por método y moneda (incluye devoluciones/cancelaciones)
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <table className="w-full text-xs">
                 <tbody>
-                  {metrics
-                    .filter((m) => m.metric === 'sales')
-                    .map((m) => (
-                      <tr key={m.id} className="border-t">
+                  {salesByMethod.map((m, i) => {
+                    const code = m.currencyCode ?? primaryCurrency;
+                    const dp = getCurrencyDecimalPlaces(code);
+                    const majorAmount = m.sumAmount / Math.pow(10, dp);
+                    const dpPrimary = getCurrencyDecimalPlaces(primaryCurrency);
+                    const majorInPrimary = m.sumAmountInPrimary / Math.pow(10, dpPrimary);
+                    const showsPrimaryEquiv = code !== primaryCurrency;
+                    return (
+                      <tr key={`${m.paymentMethod}-${m.currencyCode}-${i}`} className="border-t">
                         <td className="px-2 py-1">
-                          {m.paymentMethod} / {m.currencyCode}
+                          {m.paymentMethod} / {m.currencyCode ?? '—'}
                         </td>
                         <td className="px-2 py-1 text-right font-mono">
-                          {Number(m.valueNumeric ?? 0).toLocaleString('es-PY')}
+                          <div>{formatAmount(majorAmount, code)}</div>
+                          {showsPrimaryEquiv && (
+                            <div className="text-[10px] text-muted-foreground">
+                              ≈ {formatAmount(majorInPrimary, primaryCurrency)}
+                            </div>
+                          )}
                         </td>
                       </tr>
-                    ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </CardContent>
@@ -559,6 +676,8 @@ export default async function CajaDetailPage({
                 )}
                 {sales.map((o) => {
                   const methods = methodsByOrder.get(o.id) ?? [];
+                  const hasReturn = (o.returnedUnits ?? 0) > 0;
+                  const showsNet = o.status !== 'cancelled' && hasReturn && o.netTotal !== o.total;
                   return (
                     <tr key={o.id} className="border-t hover:bg-muted/30">
                       <td className="px-3 py-2 font-mono">
@@ -570,7 +689,16 @@ export default async function CajaDetailPage({
                       <td className="px-3 py-2">{o.customerName}</td>
                       <td className="px-3 py-2 text-right font-mono">{o.lineCount}</td>
                       <td className="px-3 py-2 text-right font-mono">
-                        {o.total.toLocaleString('es-PY')} {o.currency}
+                        {showsNet ? (
+                          <>
+                            <div className="text-muted-foreground line-through text-xs">
+                              {formatAmount(o.total, o.currency)}
+                            </div>
+                            <div>{formatAmount(o.netTotal ?? o.total, o.currency)}</div>
+                          </>
+                        ) : (
+                          formatAmount(o.total, o.currency)
+                        )}
                       </td>
                       <td className="px-3 py-2 text-xs">
                         {methods.length === 0 && <span className="text-muted-foreground">—</span>}
@@ -585,6 +713,10 @@ export default async function CajaDetailPage({
                         {o.status === 'cancelled' ? (
                           <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-xs text-destructive">
                             Cancelada
+                          </span>
+                        ) : hasReturn ? (
+                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                            Con devolución
                           </span>
                         ) : (
                           <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-900">

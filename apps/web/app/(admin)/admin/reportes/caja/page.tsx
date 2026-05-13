@@ -14,6 +14,11 @@ import { KpiCard } from '../_components/KpiCard';
 import { DateRangeFilter } from '../_components/DateRangeFilter';
 import { parseRange, rangeLabel, toLocalInput } from '../_lib/date-range';
 import {
+  formatNumber,
+  formatAmount,
+  getCurrencyDecimalPlaces,
+} from '@frc-e-commerce/shared-utils';
+import {
   getCashKpis,
   getCashierRanking,
   getClosuresInRange,
@@ -45,8 +50,15 @@ export default async function CajaReportPage({
     getClosuresInRange(tenant.id, range, 50),
   ]);
 
-  const fmt = (n: number) => n.toLocaleString('es-PY');
-  const fmtDiff = (n: number) => `${n > 0 ? '+' : ''}${fmt(n)}`;
+  const fmt = (n: number) => formatNumber(n, 0);
+  /** Diff en minor units → major formateado con su moneda nativa. */
+  const fmtDiffCurrency = (n: number, currency: string) => {
+    const dp = getCurrencyDecimalPlaces(currency);
+    const major = n / Math.pow(10, dp);
+    const signed = `${major > 0 ? '+' : ''}${formatAmount(major, currency)}`;
+    return signed;
+  };
+  const hasAnyDiff = kpis.diffsByCurrency.some((d) => d.diff !== 0);
 
   return (
     <div className="space-y-4">
@@ -76,10 +88,21 @@ export default async function CajaReportPage({
           description={`Devol: ${fmt(kpis.totalReturns)} · Cancel: ${fmt(kpis.totalCancellations)}`}
         />
         <KpiCard
-          title="Diferencia neta"
-          value={fmtDiff(kpis.netDiff)}
-          description="Suma de diferencias de conteo (todas las monedas)"
-          tone={kpis.netDiff === 0 ? 'muted' : kpis.netDiff > 0 ? 'positive' : 'negative'}
+          title="Diferencia de conteo"
+          value={
+            !hasAnyDiff
+              ? 'Sin diferencias'
+              : kpis.diffsByCurrency
+                  .filter((d) => d.diff !== 0)
+                  .map((d) => fmtDiffCurrency(d.diff, d.currencyCode))
+                  .join(' · ')
+          }
+          description={
+            kpis.diffsByCurrency.length > 1
+              ? 'Agrupado por moneda (no se mezclan)'
+              : 'Acumulado del período'
+          }
+          tone={!hasAnyDiff ? 'muted' : 'negative'}
         />
         <KpiCard
           title="Ticket promedio"
@@ -181,16 +204,28 @@ export default async function CajaReportPage({
                     <td className="px-3 py-2 text-right font-mono">{fmt(c.totalTransactions)}</td>
                     <td className="px-3 py-2 text-right font-mono">{fmt(c.totalSales)}</td>
                     <td className="px-3 py-2 text-right font-mono">{fmt(c.totalReturns)}</td>
-                    <td
-                      className={`px-3 py-2 text-right font-mono ${
-                        c.netDiff === 0
-                          ? 'text-muted-foreground'
-                          : c.netDiff > 0
-                            ? 'text-emerald-700 dark:text-emerald-400'
-                            : 'text-destructive'
-                      }`}
-                    >
-                      {fmtDiff(c.netDiff)}
+                    <td className="px-3 py-2 text-right font-mono text-xs">
+                      {(() => {
+                        const nonZero = c.diffsByCurrency.filter((d) => d.diff !== 0);
+                        if (nonZero.length === 0)
+                          return <span className="text-muted-foreground">0</span>;
+                        return (
+                          <div className="flex flex-col items-end gap-0.5">
+                            {nonZero.map((d) => (
+                              <span
+                                key={d.currencyCode}
+                                className={
+                                  d.diff > 0
+                                    ? 'text-emerald-700 dark:text-emerald-400'
+                                    : 'text-destructive'
+                                }
+                              >
+                                {fmtDiffCurrency(d.diff, d.currencyCode)}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-3 py-2 text-right">
                       <Link

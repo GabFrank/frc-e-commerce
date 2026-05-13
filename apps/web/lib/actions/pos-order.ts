@@ -52,9 +52,11 @@ const detailSchema = z.object({
   kind: z.enum(['payment', 'change', 'discount', 'surcharge']),
   paymentMethod: z.string().nullable(),
   currencyCode: z.string().nullable(),
-  amount: z.number().min(0),
+  // En unidades mínimas (centavos para USD/BRL, guaraníes para PYG). El cliente
+  // convierte antes de enviar — payment_detail.amount es bigint en la DB.
+  amount: z.number().int().min(0),
   exchangeRateSnapshot: z.string().nullable(),
-  amountInPrimary: z.number(),
+  amountInPrimary: z.number().int(),
 });
 
 const createPosOrderSchema = z.object({

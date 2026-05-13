@@ -11,6 +11,7 @@ import {
 } from '@frc-e-commerce/db/schema';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { CajaRowActions } from '@/components/admin/financiero/CajaRowActions';
+import { formatNumber } from '@frc-e-commerce/shared-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -129,13 +130,13 @@ export default async function CajasPage() {
                     {s.closedAt ? new Date(s.closedAt).toLocaleString('es-PY') : '—'}
                   </td>
                   <td className="px-3 py-2 text-right font-mono">
-                    {s.totalSalesInPrimary?.toLocaleString('es-PY') ?? '—'}
+                    {s.totalSalesInPrimary != null ? formatNumber(Number(s.totalSalesInPrimary), 0) : '—'}
                   </td>
                   <td className="px-3 py-2 text-right font-mono">
-                    {s.totalReturnsInPrimary?.toLocaleString('es-PY') ?? '—'}
+                    {s.totalReturnsInPrimary != null ? formatNumber(Number(s.totalReturnsInPrimary), 0) : '—'}
                   </td>
                   <td className="px-3 py-2 text-right font-mono">
-                    {s.totalCancellationsInPrimary?.toLocaleString('es-PY') ?? '—'}
+                    {s.totalCancellationsInPrimary != null ? formatNumber(Number(s.totalCancellationsInPrimary), 0) : '—'}
                   </td>
                   <td className="px-3 py-2 text-right font-mono">
                     {s.totalTransactions ?? '—'}

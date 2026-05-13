@@ -17,6 +17,7 @@ import {
   searchVariantsForPurchase,
   type PurchaseVariantOption,
 } from '@/lib/actions/purchase-search';
+import { formatAmount, formatNumber } from '@frc-e-commerce/shared-utils';
 
 type Props = {
   open: boolean;
@@ -30,7 +31,7 @@ type Props = {
 };
 
 const DEBOUNCE_MS = 200;
-const fmt = (n: number) => n.toLocaleString('es-PY');
+const fmt = (n: number) => formatNumber(n, 0);
 
 export function VariantSearchPicker({
   open,
@@ -49,6 +50,8 @@ export function VariantSearchPicker({
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  /** Filtra a variantes que el supplier ya tiene vinculadas (tabla supplier_product_variant). */
+  const [linkedOnly, setLinkedOnly] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Debounce
@@ -57,7 +60,12 @@ export function VariantSearchPicker({
     return () => clearTimeout(t);
   }, [query]);
 
-  // Búsqueda al cambiar query debounced o supplier/currency — siempre desde offset 0
+  // Reset toggle al cambiar de proveedor — sino el filtro queda colgado y muestra cero.
+  useEffect(() => {
+    setLinkedOnly(false);
+  }, [supplierId]);
+
+  // Búsqueda al cambiar query debounced, supplier/currency o linkedOnly — siempre desde offset 0
   useEffect(() => {
     if (!open) return;
     startTransition(async () => {
@@ -68,6 +76,7 @@ export function VariantSearchPicker({
         currencyCode,
         limit: 20,
         offset: 0,
+        linkedToSupplierOnly: linkedOnly && !!supplierId,
       });
       if (res.ok) {
         setResults(res.results);
@@ -78,7 +87,7 @@ export function VariantSearchPicker({
         setHasMore(false);
       }
     });
-  }, [debounced, supplierId, currencyCode, open]);
+  }, [debounced, supplierId, currencyCode, open, linkedOnly]);
 
   const loadMore = async () => {
     if (loadingMore || !hasMore) return;
@@ -89,6 +98,7 @@ export function VariantSearchPicker({
       currencyCode,
       limit: 20,
       offset: results.length,
+      linkedToSupplierOnly: linkedOnly && !!supplierId,
     });
     setLoadingMore(false);
     if (res.ok) {
@@ -235,11 +245,34 @@ export function VariantSearchPicker({
             )}
           </div>
 
-          {query.trim() === '' && !pending && results.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              Mostrando los <strong>{results.length}</strong> más comprados de los últimos 90 días.
-            </p>
-          )}
+          <div className="flex items-center justify-between gap-3">
+            <label
+              className={`flex items-center gap-2 text-xs ${
+                supplierId ? 'cursor-pointer text-foreground' : 'cursor-not-allowed text-muted-foreground/60'
+              }`}
+              title={
+                supplierId
+                  ? 'Limitar a productos previamente comprados a este proveedor'
+                  : 'Elegí un proveedor primero'
+              }
+            >
+              <input
+                type="checkbox"
+                checked={linkedOnly && !!supplierId}
+                disabled={!supplierId}
+                onChange={(e) => setLinkedOnly(e.target.checked)}
+                className="h-3.5 w-3.5"
+              />
+              Solo productos del proveedor
+            </label>
+            {query.trim() === '' && !pending && results.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {linkedOnly && supplierId
+                  ? <>Mostrando <strong>{results.length}</strong> variantes vinculadas a este proveedor.</>
+                  : <>Mostrando los <strong>{results.length}</strong> más comprados de los últimos 90 días.</>}
+              </p>
+            )}
+          </div>
 
           {error && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
@@ -422,7 +455,7 @@ export function VariantSearchPicker({
                                         <span>
                                           Último:{' '}
                                           <strong className="text-foreground">
-                                            {fmt(v.lastUnitCost.value)} {v.lastUnitCost.currencyCode}
+                                            {formatAmount(v.lastUnitCost.value, v.lastUnitCost.currencyCode)}
                                           </strong>
                                           {v.lastUnitCost.receivedAt && (
                                             <span className="text-muted-foreground/70">

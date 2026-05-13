@@ -1,5 +1,6 @@
 'use client';
 
+import { formatAmount } from '@frc-e-commerce/shared-utils';
 import { Button } from '@/components/ui/button';
 import type { PosTenantContext } from './PosShell';
 
@@ -47,24 +48,24 @@ export function CartTotals({ totals, ctx, customCurrency, canCheckout, onCheckou
     <div className="border-t bg-muted/40 p-3 text-sm">
       <div className="flex justify-between">
         <span className="text-muted-foreground">Subtotal</span>
-        <span className="font-mono">{totals.subtotal.toLocaleString('es-PY')}</span>
+        <span className="font-mono">{formatAmount(totals.subtotal, primary)}</span>
       </div>
       {totals.generalDiscountAmount > 0 && (
         <div className="flex justify-between text-amber-700">
           <span>Descuento general</span>
-          <span className="font-mono">−{totals.generalDiscountAmount.toLocaleString('es-PY')}</span>
+          <span className="font-mono">−{formatAmount(totals.generalDiscountAmount, primary)}</span>
         </div>
       )}
       {totals.surchargeAmount > 0 && (
         <div className="flex justify-between text-blue-700">
           <span>Aumento</span>
-          <span className="font-mono">+{totals.surchargeAmount.toLocaleString('es-PY')}</span>
+          <span className="font-mono">+{formatAmount(totals.surchargeAmount, primary)}</span>
         </div>
       )}
       <div className="mt-2 flex items-baseline justify-between border-t pt-2">
         <span className="font-medium">Total ({primary})</span>
         <span className="font-mono text-2xl font-bold">
-          {primaryCfg?.symbol} {totals.total.toLocaleString('es-PY')}
+          {formatAmount(totals.total, primary)}
         </span>
       </div>
       {otherDisplays.length > 0 && (
@@ -72,9 +73,7 @@ export function CartTotals({ totals, ctx, customCurrency, canCheckout, onCheckou
           {otherDisplays.map((d) => (
             <div key={d.code} className="flex justify-between">
               <span>≈ {d.code}</span>
-              <span className="font-mono">
-                {d.symbol} {Number(d.amount).toLocaleString('es-PY')}
-              </span>
+              <span className="font-mono">{formatAmount(Number(d.amount), d.code)}</span>
             </div>
           ))}
         </div>

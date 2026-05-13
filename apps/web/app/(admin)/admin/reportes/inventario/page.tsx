@@ -11,16 +11,26 @@ import {
 } from '@/components/ui/card';
 import { KpiCard } from '../_components/KpiCard';
 import { DateRangeFilter } from '../_components/DateRangeFilter';
+import { MovementsFilters } from '../_components/MovementsFilters';
 import { parseRange, rangeLabel, toLocalInput } from '../_lib/date-range';
 import {
   getProductStats,
   getMovementsByKind,
   getRecentStockMovements,
 } from '../_lib/queries';
+import { formatNumber } from '@frc-e-commerce/shared-utils';
 
 export const dynamic = 'force-dynamic';
 
-type SP = { from?: string; to?: string; granularity?: string };
+type SP = {
+  from?: string;
+  to?: string;
+  granularity?: string;
+  mvQ?: string;
+  mvKind?: string;
+  mvPage?: string;
+  mvPageSize?: string;
+};
 
 const KIND_LABEL: Record<string, string> = {
   purchase: 'Compra',
@@ -57,14 +67,26 @@ export default async function InventarioReportPage({
 
   const sp = await searchParams;
   const range = parseRange(sp);
+  const mvFilters = {
+    q: sp.mvQ ?? '',
+    kind: sp.mvKind ?? 'all',
+    page: Number(sp.mvPage ?? '1'),
+    pageSize: Number(sp.mvPageSize ?? '25'),
+  };
 
-  const [stats, byKind, movements] = await Promise.all([
+  const [stats, byKind, movementsRes] = await Promise.all([
     getProductStats(tenant.id, 5),
     getMovementsByKind(tenant.id, range),
-    getRecentStockMovements(tenant.id, range, 100),
+    getRecentStockMovements(tenant.id, range, {
+      kind: mvFilters.kind,
+      q: mvFilters.q,
+      page: mvFilters.page,
+      pageSize: mvFilters.pageSize,
+    }),
   ]);
+  const movements = movementsRes.rows;
 
-  const fmt = (n: number) => n.toLocaleString('es-PY');
+  const fmt = (n: number) => formatNumber(n, 0);
 
   const inflowKinds = byKind.filter((k) => (KIND_SIGN[k.kind] ?? 1) > 0);
   const outflowKinds = byKind.filter((k) => (KIND_SIGN[k.kind] ?? 1) < 0);
@@ -170,9 +192,13 @@ export default async function InventarioReportPage({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Audit log de movimientos</CardTitle>
-          <CardDescription>Últimos 100 movimientos del período</CardDescription>
+          <CardDescription>
+            {movementsRes.total} {movementsRes.total === 1 ? 'movimiento' : 'movimientos'} en el
+            período
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
+          <MovementsFilters initial={mvFilters} total={movementsRes.total} />
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/40 text-xs text-muted-foreground">

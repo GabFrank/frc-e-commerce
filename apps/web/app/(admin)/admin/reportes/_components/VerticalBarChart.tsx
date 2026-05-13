@@ -8,15 +8,19 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  LabelList,
 } from 'recharts';
+import { formatNumber } from '@frc-e-commerce/shared-utils';
 
 type Point = { label: string; value: number };
 
-const fmt = (n: number) => n.toLocaleString('es-PY');
+const fmt = (n: number) => formatNumber(n, 0);
 
-export function HorizontalBarChart({
+/** Barras verticales (columna). Más legibles cuando hay pocos elementos
+ *  y deja respirar la altura del card sin agrandar barras. */
+export function VerticalBarChart({
   data,
-  height = 320,
+  height = 280,
   valueLabel = 'Total',
 }: {
   data: Point[];
@@ -36,22 +40,25 @@ export function HorizontalBarChart({
   return (
     <div className="w-full" style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} layout="vertical" margin={{ top: 5, right: 16, left: 16, bottom: 5 }}>
+        <BarChart data={data} margin={{ top: 16, right: 16, left: 8, bottom: 32 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.1} />
           <XAxis
+            dataKey="label"
+            tick={{ fontSize: 11 }}
+            stroke="currentColor"
+            strokeOpacity={0.4}
+            interval={0}
+            angle={data.length > 4 ? -25 : 0}
+            textAnchor={data.length > 4 ? 'end' : 'middle'}
+            height={48}
+          />
+          <YAxis
             type="number"
             tickFormatter={fmt}
             tick={{ fontSize: 11 }}
             stroke="currentColor"
             strokeOpacity={0.4}
-          />
-          <YAxis
-            type="category"
-            dataKey="label"
-            tick={{ fontSize: 11 }}
-            stroke="currentColor"
-            strokeOpacity={0.4}
-            width={140}
+            width={56}
           />
           <Tooltip
             contentStyle={{ fontSize: 12 }}
@@ -61,8 +68,16 @@ export function HorizontalBarChart({
             dataKey="value"
             fill="currentColor"
             className="text-primary"
-            radius={[0, 4, 4, 0]}
-          />
+            radius={[4, 4, 0, 0]}
+            maxBarSize={64}
+          >
+            <LabelList
+              dataKey="value"
+              position="top"
+              formatter={(v: unknown) => (typeof v === 'number' ? fmt(v) : String(v ?? ''))}
+              fontSize={11}
+            />
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>

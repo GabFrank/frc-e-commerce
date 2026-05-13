@@ -42,6 +42,39 @@ export type TenantCurrencyView = {
  * Devuelve todas las monedas master + estado para el tenant actual (configurada o no).
  * Incluye cotización vigente para las que ya están configuradas como secundarias.
  */
+/**
+ * Devuelve una cotización sugerida para la moneda dada, con cascada:
+ * 1. Scraper externo (TODO — actualmente stub que devuelve null)
+ * 2. Cotización vigente en DB (currentSellRate del tenantCurrencyView)
+ * 3. null → el cajero la digita manualmente
+ */
+export async function getSuggestedExchangeRate(currencyCode: string): Promise<{
+  value: number;
+  source: 'scraper' | 'db' | 'none';
+} | null> {
+  const { fetchTodayRate } = await import('@/lib/exchange-rates/scraper');
+  const scraped = await fetchTodayRate(currencyCode);
+  if (scraped) return scraped;
+
+  // Fallback: rate vigente guardado
+  const tenantId = await requireTenantId();
+  await requireSessionCapability(tenantId, 'currency.view');
+  const [latest] = await db
+    .select({
+      sellRate: exchangeRate.sellRate,
+    })
+    .from(exchangeRate)
+    .where(
+      and(eq(exchangeRate.tenantId, tenantId), eq(exchangeRate.currencyCode, currencyCode))
+    )
+    .orderBy(desc(exchangeRate.effectiveFrom))
+    .limit(1);
+  if (latest?.sellRate) {
+    return { value: Number(latest.sellRate), source: 'db' };
+  }
+  return { value: 0, source: 'none' };
+}
+
 export async function listTenantCurrenciesView(): Promise<TenantCurrencyView[]> {
   const tenantId = await requireTenantId();
   await requireSessionCapability(tenantId, 'currency.view');

@@ -2,10 +2,12 @@
 
 import { useState, useTransition } from 'react';
 import { Star } from 'lucide-react';
+import { formatRate } from '@frc-e-commerce/shared-utils';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import {
   Dialog,
   DialogContent,
@@ -29,6 +31,9 @@ export function MonedasClient({ initial }: Props) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [rateDialog, setRateDialog] = useState<TenantCurrencyView | null>(null);
+  // Los rates se expresan en moneda primary — los decimales son los de ella.
+  const primary = initial.find((x) => x.isPrimary);
+  const primaryDecimalPlaces = primary?.currency.decimalPlaces ?? 0;
 
   const onToggle = (currencyCode: string, isActive: boolean) => {
     setError(null);
@@ -89,9 +94,9 @@ export function MonedasClient({ initial }: Props) {
                   {tc.currentRate ? (
                     <>
                       <div className="font-mono">
-                        compra <strong>{Number(tc.currentRate.buyRate).toLocaleString('es-PY')}</strong>
+                        compra <strong>{formatRate(tc.currentRate.buyRate, primaryDecimalPlaces)}</strong>
                         {' / '}
-                        venta <strong>{Number(tc.currentRate.sellRate).toLocaleString('es-PY')}</strong>
+                        venta <strong>{formatRate(tc.currentRate.sellRate, primaryDecimalPlaces)}</strong>
                       </div>
                       <div className="text-muted-foreground">
                         {new Date(tc.currentRate.effectiveFrom).toLocaleString('es-PY')}
@@ -146,6 +151,7 @@ export function MonedasClient({ initial }: Props) {
       {rateDialog && (
         <SetRateDialog
           tc={rateDialog}
+          primaryDecimalPlaces={primaryDecimalPlaces}
           onClose={() => setRateDialog(null)}
           onError={setError}
         />
@@ -156,26 +162,36 @@ export function MonedasClient({ initial }: Props) {
 
 function SetRateDialog({
   tc,
+  primaryDecimalPlaces,
   onClose,
   onError,
 }: {
   tc: TenantCurrencyView;
+  primaryDecimalPlaces: number;
   onClose: () => void;
   onError: (msg: string | null) => void;
 }) {
   const [pending, startTransition] = useTransition();
-  const [buyRate, setBuyRate] = useState(tc.currentRate?.buyRate ?? '');
-  const [sellRate, setSellRate] = useState(tc.currentRate?.sellRate ?? '');
+  const [buyRate, setBuyRate] = useState<number | null>(
+    tc.currentRate?.buyRate ? Number(tc.currentRate.buyRate) : null
+  );
+  const [sellRate, setSellRate] = useState<number | null>(
+    tc.currentRate?.sellRate ? Number(tc.currentRate.sellRate) : null
+  );
   const [note, setNote] = useState('');
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onError(null);
+    if (buyRate === null || sellRate === null) {
+      onError('Completá compra y venta');
+      return;
+    }
     startTransition(async () => {
       const res = await setExchangeRate({
         currencyCode: tc.currency.code,
-        buyRate: buyRate.trim(),
-        sellRate: sellRate.trim(),
+        buyRate: String(buyRate),
+        sellRate: String(sellRate),
         note: note.trim() || undefined,
       });
       if (!res.ok) onError(res.error);
@@ -199,25 +215,21 @@ function SetRateDialog({
           <div className="grid grid-cols-2 gap-3">
             <label className="text-sm">
               <span className="block mb-1 font-medium">Compra (buy)</span>
-              <Input
-                type="text"
-                inputMode="decimal"
-                placeholder="7300"
+              <MoneyInput
                 value={buyRate}
-                onChange={(e) => setBuyRate(e.target.value)}
-                required
+                onChange={setBuyRate}
+                decimalPlaces={primaryDecimalPlaces}
+                placeholder="7300"
               />
               <span className="text-xs text-muted-foreground">cuánto pagás por 1 {tc.currency.code}</span>
             </label>
             <label className="text-sm">
               <span className="block mb-1 font-medium">Venta (sell)</span>
-              <Input
-                type="text"
-                inputMode="decimal"
-                placeholder="7350"
+              <MoneyInput
                 value={sellRate}
-                onChange={(e) => setSellRate(e.target.value)}
-                required
+                onChange={setSellRate}
+                decimalPlaces={primaryDecimalPlaces}
+                placeholder="7350"
               />
               <span className="text-xs text-muted-foreground">cuánto cobrás por 1 {tc.currency.code}</span>
             </label>

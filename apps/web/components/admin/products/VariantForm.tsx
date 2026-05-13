@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useForm, type SubmitHandler } from 'react-hook-form';
+import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Archive,
@@ -26,6 +26,8 @@ import {
   updateProductVariant,
 } from '@/lib/actions/product';
 import { sizeCatalogFor, type Gender, type SizeKind } from '@/lib/clothing/sizes';
+import { formatAmount, getCurrencyDecimalPlaces } from '@frc-e-commerce/shared-utils';
+import { MoneyInput } from '@/components/ui/money-input';
 import type { ProductVariant, ProductImage } from '@frc-e-commerce/db/schema';
 import { ImageUploader } from './ImageUploader';
 import { MatrixVariantDialog } from './MatrixVariantDialog';
@@ -45,6 +47,7 @@ type VariantFormValues = {
 interface VariantFormProps {
   productId: string;
   productGender: Gender;
+  productCurrency: string;
   variants: ProductVariant[];
   tenantSlug: string;
   imagesByVariant: Record<string, ProductImage[]>;
@@ -53,6 +56,7 @@ interface VariantFormProps {
 export function VariantForm({
   productId,
   productGender,
+  productCurrency,
   variants: initialVariants,
   tenantSlug,
   imagesByVariant,
@@ -232,6 +236,7 @@ export function VariantForm({
                       {isEditing ? (
                         <VariantEditForm
                           variant={v}
+                          productCurrency={productCurrency}
                           sizeCatalog={sizeCatalog}
                           knownColors={knownColors}
                           onCancel={() => setEditingId(null)}
@@ -245,6 +250,7 @@ export function VariantForm({
                       ) : (
                         <VariantRow
                           variant={v}
+                          productCurrency={productCurrency}
                           imageCount={variantImages.length}
                           imagesOpen={showingImages}
                           archiving={archivingId === v.id}
@@ -338,6 +344,7 @@ export function VariantForm({
         {showCreate && (
           <CreateVariantForm
             productId={productId}
+            productCurrency={productCurrency}
             sizeCatalog={sizeCatalog}
             knownColors={knownColors}
             onCreated={(created) => {
@@ -351,6 +358,7 @@ export function VariantForm({
       <MatrixVariantDialog
         open={matrixOpen}
         productId={productId}
+        productCurrency={productCurrency}
         sizeCatalog={sizeCatalog}
         knownColors={knownColors}
         onClose={() => setMatrixOpen(false)}
@@ -361,6 +369,7 @@ export function VariantForm({
 
 function VariantRow({
   variant: v,
+  productCurrency,
   imageCount,
   imagesOpen,
   archiving,
@@ -369,6 +378,7 @@ function VariantRow({
   onToggleActive,
 }: {
   variant: ProductVariant;
+  productCurrency: string;
   imageCount: number;
   imagesOpen: boolean;
   archiving: boolean;
@@ -405,7 +415,7 @@ function VariantRow({
         <div className="font-mono text-xs text-muted-foreground">{v.sku}</div>
       </div>
       <div className="text-right">
-        <div className="font-mono">{v.price.toLocaleString('es-PY')}</div>
+        <div className="font-mono">{formatAmount(v.price, productCurrency)}</div>
         <div className="text-xs text-muted-foreground">precio</div>
       </div>
       <div className="text-right">
@@ -460,11 +470,13 @@ function VariantRow({
 
 function CreateVariantForm({
   productId,
+  productCurrency,
   sizeCatalog,
   knownColors,
   onCreated,
 }: {
   productId: string;
+  productCurrency: string;
   sizeCatalog: { kind: SizeKind; values: readonly string[] };
   knownColors: string[];
   onCreated: (v: ProductVariant) => void;
@@ -476,6 +488,7 @@ function CreateVariantForm({
     handleSubmit,
     setValue,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<VariantFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -539,9 +552,11 @@ function CreateVariantForm({
       <div className="text-sm font-medium">Nueva variante</div>
       <VariantFormFields
         register={register}
+        control={control}
         errors={errors}
         sizeCatalog={sizeCatalog}
         knownColors={knownColors}
+        productCurrency={productCurrency}
         onSizeChange={(s) => setValue('sizeKind', s ? sizeCatalog.kind : '')}
       />
       {serverError && <p className="text-sm text-destructive">{serverError}</p>}
@@ -554,12 +569,14 @@ function CreateVariantForm({
 
 function VariantEditForm({
   variant,
+  productCurrency,
   sizeCatalog,
   knownColors,
   onCancel,
   onSaved,
 }: {
   variant: ProductVariant;
+  productCurrency: string;
   sizeCatalog: { kind: SizeKind; values: readonly string[] };
   knownColors: string[];
   onCancel: () => void;
@@ -571,6 +588,7 @@ function VariantEditForm({
     register,
     handleSubmit,
     setValue,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<VariantFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -630,9 +648,11 @@ function VariantEditForm({
       <div className="text-sm font-medium">Editar variante</div>
       <VariantFormFields
         register={register}
+        control={control}
         errors={errors}
         sizeCatalog={sizeCatalog}
         knownColors={knownColors}
+        productCurrency={productCurrency}
         onSizeChange={(s) => setValue('sizeKind', s ? sizeCatalog.kind : '')}
       />
       {serverError && <p className="text-sm text-destructive">{serverError}</p>}
@@ -658,13 +678,17 @@ type FormFieldsProps = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   register: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  control: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   errors: any;
   sizeCatalog: { kind: SizeKind; values: readonly string[] };
   knownColors: string[];
+  productCurrency: string;
   onSizeChange: (size: string) => void;
 };
 
-function VariantFormFields({ register, errors, sizeCatalog, knownColors, onSizeChange }: FormFieldsProps) {
+function VariantFormFields({ register, control, errors, sizeCatalog, knownColors, productCurrency, onSizeChange }: FormFieldsProps) {
+  const decimalPlaces = getCurrencyDecimalPlaces(productCurrency);
   return (
     <>
       {/* hidden input para que sizeKind viaje con el form data */}
@@ -731,16 +755,33 @@ function VariantFormFields({ register, errors, sizeCatalog, knownColors, onSizeC
       <div className="grid grid-cols-3 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="price">Precio</Label>
-          <Input id="price" type="number" min={0} {...register('price', { valueAsNumber: true })} />
+          <Controller
+            control={control}
+            name="price"
+            render={({ field }) => (
+              <MoneyInput
+                id="price"
+                value={field.value ?? null}
+                onChange={(v) => field.onChange(v ?? 0)}
+                decimalPlaces={decimalPlaces}
+              />
+            )}
+          />
           {errors.price && <p className="text-xs text-destructive">{errors.price.message}</p>}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="compareAtPrice">Precio comparación</Label>
-          <Input
-            id="compareAtPrice"
-            type="number"
-            min={0}
-            {...register('compareAtPrice', { valueAsNumber: true })}
+          <Controller
+            control={control}
+            name="compareAtPrice"
+            render={({ field }) => (
+              <MoneyInput
+                id="compareAtPrice"
+                value={field.value ?? null}
+                onChange={(v) => field.onChange(v ?? 0)}
+                decimalPlaces={decimalPlaces}
+              />
+            )}
           />
         </div>
         <div className="space-y-1.5">

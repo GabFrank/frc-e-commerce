@@ -12,6 +12,7 @@ import {
   YAxis,
 } from 'recharts';
 import { useState } from 'react';
+import { formatNumber } from '@frc-e-commerce/shared-utils';
 
 type Point = {
   bucket: string;
@@ -20,7 +21,7 @@ type Point = {
   count: number;
 };
 
-const fmt = (n: number) => n.toLocaleString('es-PY');
+const fmt = (n: number) => formatNumber(n, 0);
 
 export function SalesChart({ data }: { data: Point[] }) {
   const [mode, setMode] = useState<'total' | 'count'>('total');

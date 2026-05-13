@@ -183,8 +183,8 @@ export async function closeCashSession(input: z.infer<typeof closeSchema>) {
     const closureId = await db.transaction(async (tx) => {
       // Para cada balance: calcular expected y diff
       for (const b of parsed.balances) {
-        const [openingRow] = await tx
-          .select({ opening: cashSessionBalance.openingDeclared })
+        const [existingBalance] = await tx
+          .select({ id: cashSessionBalance.id, opening: cashSessionBalance.openingDeclared })
           .from(cashSessionBalance)
           .where(
             and(
@@ -193,7 +193,17 @@ export async function closeCashSession(input: z.infer<typeof closeSchema>) {
             )
           )
           .limit(1);
-        const opening = openingRow?.opening ?? 0;
+        // Si la caja no abrió con esta moneda pero ahora hay que contar
+        // (porque hubo movimientos o el cajero la incluye), creamos balance
+        // con apertura 0 para que el cierre quede registrado.
+        if (!existingBalance) {
+          await tx.insert(cashSessionBalance).values({
+            cashSessionId: s.id,
+            currencyCode: b.currencyCode,
+            openingDeclared: 0,
+          });
+        }
+        const opening = existingBalance?.opening ?? 0;
 
         // Sum cash_movement de esta moneda y método=efectivo
         // Para MVP: el saldo expected es opening + sum sale_in - sum sale_return_out - sum sale_cancel_out

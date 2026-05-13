@@ -2,15 +2,17 @@
 
 import Image from 'next/image';
 import { Trash2, Pencil, Gift, Package } from 'lucide-react';
+import { formatAmount } from '@frc-e-commerce/shared-utils';
 import { Button } from '@/components/ui/button';
 import { usePosCart, calcLineTotal, type PosCartLine } from '@/lib/stores/usePosCart';
 
 type Props = {
   canSeeCost: boolean;
+  currency: string;
   onEditLine: (line: PosCartLine) => void;
 };
 
-export function PosCart({ canSeeCost, onEditLine }: Props) {
+export function PosCart({ canSeeCost, currency, onEditLine }: Props) {
   const { lines, removeLine, setQuantity } = usePosCart();
 
   if (lines.length === 0) {
@@ -70,23 +72,23 @@ export function PosCart({ canSeeCost, onEditLine }: Props) {
                 +
               </Button>
               <span className="ml-1 text-muted-foreground">
-                × {l.unitPrice.toLocaleString('es-PY')}
+                × {formatAmount(l.unitPrice, currency)}
               </span>
               {l.discount && (
                 <span className="ml-1 text-amber-700">
-                  − {l.discount.kind === 'pct' ? `${l.discount.value}%` : l.discount.value.toLocaleString('es-PY')}
+                  − {l.discount.kind === 'pct' ? `${l.discount.value}%` : formatAmount(l.discount.value, currency)}
                 </span>
               )}
             </div>
             {canSeeCost && l.unitCost != null && (
               <div className="text-[10px] text-muted-foreground">
-                costo: {l.unitCost.toLocaleString('es-PY')}
+                costo: {formatAmount(l.unitCost, currency)}
               </div>
             )}
           </div>
           <div className="flex flex-col items-end gap-1">
             <div className="text-sm font-semibold">
-              {calcLineTotal(l).toLocaleString('es-PY')}
+              {formatAmount(calcLineTotal(l), currency)}
             </div>
             <div className="flex gap-1">
               <Button

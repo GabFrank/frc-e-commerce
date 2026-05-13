@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { Loader2 } from 'lucide-react';
+import { formatAmount } from '@frc-e-commerce/shared-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -98,7 +99,7 @@ export function DenominationCounter({
                   return (
                     <tr key={d.id} className="border-b">
                       <td className="py-1 font-mono">
-                        {d.value.toLocaleString('es-PY')}
+                        {formatAmount(d.value, currencyCode)}
                       </td>
                       <td className="text-xs text-muted-foreground">
                         {d.kind === 'coin' ? 'm' : 'b'}
@@ -118,7 +119,7 @@ export function DenominationCounter({
                         />
                       </td>
                       <td className="py-1 text-right font-mono text-xs">
-                        {(d.value * qty).toLocaleString('es-PY')}
+                        {formatAmount(d.value * qty, currencyCode)}
                       </td>
                     </tr>
                   );
@@ -130,13 +131,13 @@ export function DenominationCounter({
                     Total contado
                   </td>
                   <td colSpan={2} className="text-right font-mono">
-                    {currencySymbol} {total.toLocaleString('es-PY')}
+                    {formatAmount(total, currencyCode)}
                   </td>
                 </tr>
                 <tr className="text-muted-foreground">
                   <td colSpan={2}>Vs declarado</td>
                   <td colSpan={2} className="text-right font-mono">
-                    {currencySymbol} {declaredAmount.toLocaleString('es-PY')}
+                    {formatAmount(declaredAmount, currencyCode)}
                   </td>
                 </tr>
                 <tr className={diff !== 0 ? 'text-amber-700' : 'text-green-700'}>
@@ -145,7 +146,7 @@ export function DenominationCounter({
                   </td>
                   <td colSpan={2} className="text-right font-mono">
                     {diff > 0 ? '+' : ''}
-                    {diff.toLocaleString('es-PY')}
+                    {formatAmount(diff, currencyCode)}
                   </td>
                 </tr>
               </tfoot>
