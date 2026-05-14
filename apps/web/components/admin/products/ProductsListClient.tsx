@@ -174,24 +174,26 @@ export function ProductsListClient({ rows, total, filters }: Props) {
         </div>
       ) : (
         <div className="overflow-hidden rounded-md border">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 bg-muted/80 text-left text-muted-foreground backdrop-blur">
-              <tr>
-                <th className="w-8 px-2 py-2"></th>
-                <th className="px-3 py-2">Producto</th>
-                <th className="px-3 py-2">SKU / Variantes</th>
-                <th className="px-3 py-2">Stock</th>
-                <th className="px-3 py-2">Precio base</th>
-                <th className="px-3 py-2">Estado</th>
-                <th className="px-3 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((p) => (
-                <ProductTableRow key={p.id} product={p} />
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead className="sticky top-0 z-10 bg-muted/80 text-left text-muted-foreground backdrop-blur">
+                <tr>
+                  <th className="w-8 px-2 py-2"></th>
+                  <th className="px-3 py-2">Producto</th>
+                  <th className="px-3 py-2">SKU / Variantes</th>
+                  <th className="px-3 py-2">Stock</th>
+                  <th className="px-3 py-2">Precio base</th>
+                  <th className="px-3 py-2">Estado</th>
+                  <th className="px-3 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((p) => (
+                  <ProductTableRow key={p.id} product={p} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -202,7 +204,7 @@ export function ProductsListClient({ rows, total, filters }: Props) {
             Mostrando {(filters.page - 1) * filters.pageSize + 1}–
             {Math.min(filters.page * filters.pageSize, total)} de {total}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <label className="text-xs text-muted-foreground">Por página</label>
             <Select
               value={String(filters.pageSize)}
@@ -224,7 +226,7 @@ export function ProductsListClient({ rows, total, filters }: Props) {
             >
               ← Anterior
             </Button>
-            <span className="text-xs text-muted-foreground">
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
               {filters.page} / {totalPages}
             </span>
             <Button

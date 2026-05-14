@@ -152,7 +152,7 @@ export function QuickRateDialog({ open, onClose, onSaved }: Props) {
 
         {!loading && rows.length > 0 && (
           <div className="space-y-3">
-            <div className="grid grid-cols-[1fr_1fr_1fr] gap-2 text-xs font-medium text-muted-foreground">
+            <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2 text-xs font-medium text-muted-foreground">
               <span>Moneda</span>
               <span>Compra</span>
               <span>Venta</span>
@@ -163,7 +163,7 @@ export function QuickRateDialog({ open, onClose, onSaved }: Props) {
               return (
                 <div
                   key={r.currency.code}
-                  className={`grid grid-cols-[1fr_1fr_1fr] items-center gap-2 rounded-md border p-2 ${
+                  className={`grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 rounded-md border p-2 ${
                     changed ? 'border-primary/60 bg-primary/5' : ''
                   }`}
                 >

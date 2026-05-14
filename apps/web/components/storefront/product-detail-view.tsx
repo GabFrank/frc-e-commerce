@@ -42,10 +42,10 @@ export function ProductDetailView({
   }, [images, selectedVariantId]);
 
   return (
-    <div className="grid gap-8 lg:grid-cols-2">
+    <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
       <ProductGallery images={visibleImages} productName={productName} />
       <div className="flex flex-col gap-5">
-        <h1 className="text-2xl font-bold">{productName}</h1>
+        <h1 className="text-xl font-bold sm:text-2xl">{productName}</h1>
         {description && (
           <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
         )}

@@ -90,29 +90,31 @@ export default async function TenantDetailPage({ params }: PageProps) {
           {memberships.length === 0 ? (
             <p className="text-sm text-muted-foreground">Aún no hay miembros.</p>
           ) : (
-            <div className="border rounded-md overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-left text-muted-foreground">
-                  <tr>
-                    <th className="p-2.5">Usuario</th>
-                    <th className="p-2.5">Email</th>
-                    <th className="p-2.5">Rol</th>
-                    <th className="p-2.5"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {memberships.map((m) => (
-                    <tr key={m.id} className="border-t">
-                      <td className="p-2.5 font-medium">{m.userName}</td>
-                      <td className="p-2.5 text-muted-foreground">{m.userEmail}</td>
-                      <td className="p-2.5 capitalize">{m.role}</td>
-                      <td className="p-2.5 text-right">
-                        <RemoveMemberButton tenantId={t.id} membershipId={m.id} />
-                      </td>
+            <div className="overflow-hidden rounded-md border">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] text-sm">
+                  <thead className="bg-muted/50 text-left text-muted-foreground">
+                    <tr>
+                      <th className="p-2.5">Usuario</th>
+                      <th className="p-2.5">Email</th>
+                      <th className="p-2.5">Rol</th>
+                      <th className="p-2.5"></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {memberships.map((m) => (
+                      <tr key={m.id} className="border-t">
+                        <td className="p-2.5 font-medium">{m.userName}</td>
+                        <td className="p-2.5 text-muted-foreground">{m.userEmail}</td>
+                        <td className="p-2.5 capitalize">{m.role}</td>
+                        <td className="p-2.5 text-right">
+                          <RemoveMemberButton tenantId={t.id} membershipId={m.id} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 

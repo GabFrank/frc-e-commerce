@@ -59,7 +59,7 @@ export default function PlanesPage() {
   return (
     <div className="space-y-6 max-w-5xl">
       <div>
-        <h1 className="text-2xl font-semibold">Planes</h1>
+        <h1 className="text-xl font-semibold sm:text-2xl">Planes</h1>
         <p className="text-sm text-muted-foreground">
           Vista informativa. Edición de planes y billing llegan post-MVP (Stripe Billing).
         </p>

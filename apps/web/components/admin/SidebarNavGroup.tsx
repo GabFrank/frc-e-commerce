@@ -13,9 +13,11 @@ export type SidebarNavItem = {
 export function SidebarNavGroup({
   label,
   items,
+  onNavigate,
 }: {
   label: string;
   items: SidebarNavItem[];
+  onNavigate?: () => void;
 }) {
   const pathname = usePathname() ?? '';
   const containsActive = items.some((it) => pathname.startsWith(it.href));
@@ -43,6 +45,7 @@ export function SidebarNavGroup({
               <Link
                 key={it.href}
                 href={it.href}
+                onClick={onNavigate}
                 className={`rounded px-2 py-1 text-sm ${
                   active ? 'bg-muted font-medium' : 'hover:bg-muted'
                 }`}

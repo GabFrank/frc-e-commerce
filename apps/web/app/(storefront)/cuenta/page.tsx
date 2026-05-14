@@ -43,13 +43,13 @@ export default async function CuentaPage() {
             <CardDescription>Tu información de cuenta</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="font-medium text-muted-foreground w-20">Nombre</span>
-              <span>{user.name}</span>
+            <div className="flex flex-wrap items-baseline gap-2 text-sm">
+              <span className="w-20 shrink-0 font-medium text-muted-foreground">Nombre</span>
+              <span className="break-all">{user.name}</span>
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="font-medium text-muted-foreground w-20">Email</span>
-              <span>{user.email}</span>
+            <div className="flex flex-wrap items-baseline gap-2 text-sm">
+              <span className="w-20 shrink-0 font-medium text-muted-foreground">Email</span>
+              <span className="break-all">{user.email}</span>
             </div>
           </CardContent>
         </Card>

@@ -141,7 +141,7 @@ export default async function InventarioReportPage({
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2 text-left">Tipo</th>
@@ -200,7 +200,7 @@ export default async function InventarioReportPage({
         <CardContent className="p-0">
           <MovementsFilters initial={mvFilters} total={movementsRes.total} />
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2 text-left">Fecha</th>

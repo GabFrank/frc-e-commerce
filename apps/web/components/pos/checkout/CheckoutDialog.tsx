@@ -312,7 +312,7 @@ export function CheckoutDialog({
         }
       }}
     >
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-h-[92vh] w-[calc(100vw-1rem)] max-w-3xl overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>{success ? 'Cobro confirmado' : 'Cobro'}</DialogTitle>
         </DialogHeader>
@@ -434,8 +434,8 @@ export function CheckoutDialog({
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="-mx-1 overflow-x-auto px-1">
+              <table className="w-full min-w-[640px] text-sm">
                 <thead className="text-xs text-muted-foreground">
                   <tr>
                     <th className="text-left">Tipo</th>
@@ -452,7 +452,7 @@ export function CheckoutDialog({
                     <tr key={r.id} className="border-t">
                       <td className="py-1">
                         <select
-                          className="rounded border bg-background px-1 py-0.5 text-sm"
+                          className="h-9 rounded border bg-background px-2 text-sm"
                           value={r.kind}
                           onChange={(e) =>
                             updateRow(r.id, { kind: e.target.value as Row['kind'] })
@@ -464,7 +464,7 @@ export function CheckoutDialog({
                       </td>
                       <td>
                         <select
-                          className="rounded border bg-background px-1 py-0.5 text-sm"
+                          className="h-9 rounded border bg-background px-2 text-sm"
                           value={r.paymentMethod ?? ''}
                           onChange={(e) =>
                             updateRow(r.id, { paymentMethod: e.target.value })
@@ -479,7 +479,7 @@ export function CheckoutDialog({
                       </td>
                       <td>
                         <select
-                          className="rounded border bg-background px-1 py-0.5 text-sm"
+                          className="h-9 rounded border bg-background px-2 text-sm"
                           value={r.currencyCode ?? ''}
                           onChange={(e) =>
                             updateRow(r.id, { currencyCode: e.target.value })
@@ -659,7 +659,7 @@ function AdjustmentDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-md p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
@@ -667,7 +667,7 @@ function AdjustmentDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <RadioGroup value={mode} onValueChange={(v) => setMode(v as 'fixed' | 'pct')} className="grid grid-cols-2 gap-2">
+        <RadioGroup value={mode} onValueChange={(v) => setMode(v as 'fixed' | 'pct')} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <label className="flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm">
             <RadioGroupItem value="fixed" /> Valor fijo
           </label>

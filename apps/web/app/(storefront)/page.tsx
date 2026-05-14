@@ -39,21 +39,21 @@ export default async function StorefrontHomePage() {
   return (
     <div>
       {/* Hero */}
-      <section className="border-b bg-muted/50 py-16 text-center">
+      <section className="border-b bg-muted/50 py-10 text-center sm:py-16">
         <div className="mx-auto max-w-3xl px-4">
-          <h1 className="text-4xl font-bold tracking-tight text-foreground">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
             {tenant.name}
           </h1>
           {tenant.slogan && (
-            <p className="mt-3 text-lg text-muted-foreground">{tenant.slogan}</p>
+            <p className="mt-3 text-base text-muted-foreground sm:text-lg">{tenant.slogan}</p>
           )}
           {!tenant.slogan && tenant.description && (
-            <p className="mt-3 text-lg text-muted-foreground">{tenant.description}</p>
+            <p className="mt-3 text-base text-muted-foreground sm:text-lg">{tenant.description}</p>
           )}
           <div className="mt-6 flex items-center justify-center gap-4">
             <Link
               href="/productos"
-              className="rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              className="rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
               Ver productos
             </Link>
@@ -62,9 +62,9 @@ export default async function StorefrontHomePage() {
       </section>
 
       {/* Productos destacados */}
-      <section className="mx-auto max-w-6xl px-4 py-12">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">Productos destacados</h2>
+      <section className="mx-auto max-w-6xl px-4 py-8 sm:py-12">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-xl font-semibold sm:text-2xl">Productos destacados</h2>
           <Link href="/productos" className="text-sm text-muted-foreground hover:underline">
             Ver todos
           </Link>
@@ -126,17 +126,17 @@ export default async function StorefrontHomePage() {
 
 function LandingGenerico() {
   return (
-    <div className="flex flex-col items-center justify-center gap-8 py-24 px-4 text-center">
+    <div className="flex flex-col items-center justify-center gap-8 px-4 py-16 text-center sm:py-24">
       <div>
-        <h1 className="text-4xl font-bold tracking-tight">FRC E-commerce Platform</h1>
-        <p className="mt-3 text-lg text-muted-foreground">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">FRC E-commerce Platform</h1>
+        <p className="mt-3 text-base text-muted-foreground sm:text-lg">
           Plataforma SaaS multi-tenant para tiendas online
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
           Para acceder a una tienda, ingresá al subdominio de tu tienda
         </p>
       </div>
-      <div className="flex gap-4">
+      <div className="flex flex-wrap justify-center gap-4">
         <Link
           href="/login"
           className="rounded-md border px-5 py-2.5 text-sm font-medium hover:bg-muted/50 transition-colors"

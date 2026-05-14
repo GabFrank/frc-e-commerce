@@ -66,15 +66,15 @@ export default async function PoDetailPage({
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <Link
             href="/admin/compras"
             className="mb-2 inline-block text-sm text-muted-foreground hover:underline"
           >
             ← Compras
           </Link>
-          <h1 className="font-mono text-2xl font-semibold">{po.poNumber}</h1>
+          <h1 className="break-all font-mono text-xl font-semibold sm:text-2xl">{po.poNumber}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {supplierName} ·{' '}
             {new Intl.DateTimeFormat('es-PY', {

@@ -25,9 +25,9 @@ export default async function PosConfigPage() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Configuración del POS</h1>
+      <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold sm:text-2xl">Configuración del POS</h1>
           <p className="text-sm text-muted-foreground">
             Personalizá el comportamiento del POS para esta tienda. Los cambios afectan a todos los cashiers.
           </p>

@@ -3,7 +3,15 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { LockKeyhole, Coins } from 'lucide-react';
+import { LockKeyhole, Coins, ShoppingCart, MoreVertical } from 'lucide-react';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { formatAmount } from '@frc-e-commerce/shared-utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { TenantMemberRole } from '@frc-e-commerce/db/schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,6 +85,7 @@ export function PosShell({
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(shouldAutoClose);
   const [rateDialogOpen, setRateDialogOpen] = useState(false);
+  const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const cart = usePosCart();
   const totals = calcTotal({
@@ -125,25 +134,30 @@ export function PosShell({
     setLineDialog(v);
   };
 
+  const primaryCurrency = cart.primaryCurrencyOverride ?? ctx.primaryCurrency;
+  const totalItems = cart.lines.reduce((acc, l) => acc + l.quantity, 0);
+
   return (
     <>
-      <header className="flex h-12 shrink-0 items-center justify-between border-b bg-card px-4 text-sm">
-        <div className="flex items-center gap-4">
-          <span className="font-semibold">{ctx.tenantName} · POS</span>
-          <span className="text-muted-foreground">
+      {/* Header: desktop full, mobile compacto */}
+      <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b bg-card px-3 text-sm md:h-12 md:px-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-4">
+          <span className="truncate font-semibold">{ctx.tenantName} · POS</span>
+          <span className="hidden text-muted-foreground md:inline">
             Cajero: <strong className="text-foreground">{ctx.cashierName}</strong> ({ctx.role})
           </span>
           {activeSession ? (
-            <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-900">
+            <span className="hidden rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-900 sm:inline">
               Caja abierta {new Date(activeSession.openedAt).toLocaleString('es-PY')}
             </span>
           ) : (
             <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">
-              Sin caja abierta
+              Sin caja
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 text-xs">
+        {/* Acciones desktop */}
+        <div className="hidden items-center gap-2 text-xs md:flex">
           {ctx.canSetRate && (
             <Button
               type="button"
@@ -172,10 +186,39 @@ export function PosShell({
             ← Volver a admin
           </Link>
         </div>
+        {/* Menú mobile */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label="Más acciones"
+              className="h-9 w-9 md:hidden"
+            >
+              <MoreVertical className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {ctx.canSetRate && (
+              <DropdownMenuItem onSelect={() => setRateDialogOpen(true)}>
+                <Coins className="h-4 w-4" /> Cotización
+              </DropdownMenuItem>
+            )}
+            {activeSession && (
+              <DropdownMenuItem onSelect={() => setCloseOpen(true)}>
+                <LockKeyhole className="h-4 w-4" /> Cerrar caja
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem asChild>
+              <Link href="/admin">← Volver a admin</Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </header>
-    <div className="grid flex-1 grid-cols-[1fr_400px] overflow-hidden">
+    <div className="flex flex-1 flex-col overflow-hidden md:grid md:grid-cols-[1fr_400px]">
       {/* Izquierda: búsqueda + atajos */}
-      <section className="flex flex-col gap-4 p-4 overflow-y-auto">
+      <section className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-3 pb-24 md:p-4 md:pb-4">
         <div className="flex gap-2">
           <Input
             ref={searchInputRef}
@@ -212,7 +255,7 @@ export function PosShell({
 
         <div className="rounded-md border bg-card p-3 text-sm">
           <div className="font-medium">Moneda de la venta</div>
-          <div className="mt-1 flex items-center justify-between">
+          <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
             <div>
               {cart.primaryCurrencyOverride ?? ctx.primaryCurrency}{' '}
               {cart.primaryCurrencyOverride && (
@@ -221,7 +264,7 @@ export function PosShell({
             </div>
             {ctx.canChangeCurrency && (
               <select
-                className="rounded border bg-background px-2 py-1 text-sm"
+                className="h-9 rounded border bg-background px-2 text-sm"
                 value={cart.primaryCurrencyOverride ?? ctx.primaryCurrency}
                 onChange={(e) => {
                   const v = e.target.value;
@@ -253,10 +296,9 @@ export function PosShell({
         </div>
       </section>
 
-      {/* Derecha: carrito */}
-      <aside className="flex flex-col border-l bg-card overflow-hidden">
-        <PosCart canSeeCost={ctx.canSeeCost} currency={cart.primaryCurrencyOverride ?? ctx.primaryCurrency} onEditLine={(line) => {
-          // Abrir dialog de detalle prepoblado para edit
+      {/* Derecha: carrito (desktop sidebar / mobile sheet) */}
+      <aside className="hidden flex-col overflow-hidden border-l bg-card md:flex">
+        <PosCart canSeeCost={ctx.canSeeCost} currency={primaryCurrency} onEditLine={(line) => {
           setLineDialog({
             variantId: line.variantId,
             productId: line.productId,
@@ -268,7 +310,7 @@ export function PosShell({
             sizeKind: line.sizeKind,
             attributesLabel: line.attributesLabel,
             price: line.unitPrice,
-            currency: cart.primaryCurrencyOverride ?? ctx.primaryCurrency,
+            currency: primaryCurrency,
             stock: line.availableStock,
             imageUrl: line.imageUrl,
           });
@@ -281,6 +323,76 @@ export function PosShell({
           onCheckout={() => setCheckoutOpen(true)}
         />
       </aside>
+
+      {/* Sticky mobile cart bar */}
+      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t bg-card p-3 shadow-lg md:hidden">
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="flex-1"
+          onClick={() => setCartSheetOpen(true)}
+        >
+          <ShoppingCart className="mr-2 h-4 w-4" />
+          {totalItems > 0 ? `${totalItems} item${totalItems > 1 ? 's' : ''}` : 'Carrito'}
+          {totals.total > 0 && (
+            <span className="ml-2 font-mono text-xs">{formatAmount(totals.total, primaryCurrency)}</span>
+          )}
+        </Button>
+        <Button
+          type="button"
+          size="lg"
+          className="flex-1"
+          disabled={!activeSession || totals.total === 0}
+          onClick={() => setCheckoutOpen(true)}
+        >
+          Cobrar
+        </Button>
+      </div>
+
+      {/* Mobile cart sheet */}
+      <Sheet open={cartSheetOpen} onOpenChange={setCartSheetOpen}>
+        <SheetContent
+          side="bottom"
+          className="flex h-[85vh] flex-col gap-0 p-0"
+        >
+          <div className="border-b p-4">
+            <SheetTitle>Carrito ({totalItems})</SheetTitle>
+          </div>
+          <PosCart
+            canSeeCost={ctx.canSeeCost}
+            currency={primaryCurrency}
+            onEditLine={(line) => {
+              setCartSheetOpen(false);
+              setLineDialog({
+                variantId: line.variantId,
+                productId: line.productId,
+                productName: line.productName,
+                sku: line.sku,
+                variantName: line.variantName,
+                color: line.color,
+                size: line.size,
+                sizeKind: line.sizeKind,
+                attributesLabel: line.attributesLabel,
+                price: line.unitPrice,
+                currency: primaryCurrency,
+                stock: line.availableStock,
+                imageUrl: line.imageUrl,
+              });
+            }}
+          />
+          <CartTotals
+            totals={totals}
+            ctx={ctx}
+            customCurrency={cart.primaryCurrencyOverride}
+            canCheckout={!!activeSession}
+            onCheckout={() => {
+              setCartSheetOpen(false);
+              setCheckoutOpen(true);
+            }}
+          />
+        </SheetContent>
+      </Sheet>
 
       {searchOpen && (
         <SearchDialog

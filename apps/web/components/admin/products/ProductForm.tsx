@@ -170,7 +170,7 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
           </div>
 
           {/* Estado y género */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="status">Estado</Label>
               <Select id="status" {...register('status')}>
@@ -216,7 +216,7 @@ export function ProductForm({ product: initial, categories }: ProductFormProps) 
           )}
 
           {/* Precio base */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="basePrice">Precio base</Label>
               <Controller

@@ -96,7 +96,7 @@ export function NewSupplierDialog({ open, initialName, onClose, onCreated }: Pro
               disabled={pending}
             />
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="sup-doc">Documento (RUC/CI)</Label>
               <Input

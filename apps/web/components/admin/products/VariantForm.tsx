@@ -144,9 +144,9 @@ export function VariantForm({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
         <CardTitle>Variantes</CardTitle>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             type="button"
             size="sm"
@@ -226,7 +226,7 @@ export function VariantForm({
                 )}
               </div>
             ) : (
-              <div className="divide-y rounded-md border">
+              <div className="divide-y overflow-x-auto rounded-md border">
                 {pageVariants.map((v) => {
                   const variantImages = imagesByVariant[v.id] ?? [];
                   const isEditing = editingId === v.id;
@@ -388,7 +388,7 @@ function VariantRow({
 }) {
   return (
     <div
-      className={`grid grid-cols-[auto_auto_1fr_auto_auto_auto_auto] items-center gap-3 px-3 py-2.5 text-sm transition-opacity ${
+      className={`grid min-w-[640px] grid-cols-[auto_auto_1fr_auto_auto_auto_auto] items-center gap-3 px-3 py-2.5 text-sm transition-opacity ${
         v.active ? '' : 'opacity-60'
       }`}
     >
@@ -694,7 +694,7 @@ function VariantFormFields({ register, control, errors, sizeCatalog, knownColors
       {/* hidden input para que sizeKind viaje con el form data */}
       <input type="hidden" {...register('sizeKind')} />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="sku">SKU</Label>
           <Input id="sku" {...register('sku')} />
@@ -707,7 +707,7 @@ function VariantFormFields({ register, control, errors, sizeCatalog, knownColors
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="color">
             Color{' '}
@@ -752,7 +752,7 @@ function VariantFormFields({ register, control, errors, sizeCatalog, knownColors
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="space-y-1.5">
           <Label htmlFor="price">Precio</Label>
           <Controller

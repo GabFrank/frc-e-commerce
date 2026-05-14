@@ -93,7 +93,7 @@ export function SearchDialog({ ctx, onClose, onPick }: Props) {
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
+      <DialogContent className="flex max-h-[92vh] max-w-3xl flex-col">
         <DialogHeader>
           <DialogTitle>Buscar producto</DialogTitle>
         </DialogHeader>
@@ -122,7 +122,7 @@ export function SearchDialog({ ctx, onClose, onPick }: Props) {
               Empezá a escribir o escaneá un código...
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2 p-2">
+          <div className="grid grid-cols-1 gap-2 p-2 sm:grid-cols-2">
             {results.map((r, i) => {
               const outOfStock = r.totalStock <= 0;
               const priceDisplay = formatPriceDisplay(r);

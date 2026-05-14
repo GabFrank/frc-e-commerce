@@ -132,7 +132,7 @@ export function ImageUploader({
                 e.stopPropagation();
                 setConfirmDeleteId(img.id);
               }}
-              className="absolute top-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-foreground/80 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-white"
+              className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-foreground/80 opacity-100 shadow-sm transition-opacity hover:bg-destructive hover:text-white md:opacity-0 md:group-hover:opacity-100"
               aria-label="Eliminar imagen"
               title="Eliminar"
             >
@@ -140,7 +140,7 @@ export function ImageUploader({
             </button>
 
             {/* Indicador de posición */}
-            <div className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
               #{i + 1}
             </div>
           </div>
