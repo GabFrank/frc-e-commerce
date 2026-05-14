@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Archive, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { archiveProduct, deleteProduct } from '@/lib/actions/product';
 
 export function ProductDangerZone({
@@ -17,20 +18,26 @@ export function ProductDangerZone({
   productStatus: 'draft' | 'active' | 'archived';
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const onArchive = () => {
+  const onArchive = async () => {
     if (productStatus === 'archived') {
-      alert('Este producto ya está archivado.');
+      await confirm({
+        mode: 'alert',
+        title: 'Ya archivado',
+        description: 'Este producto ya está archivado.',
+      });
       return;
     }
-    if (
-      !confirm(
-        `¿Archivar "${productName}"?\n\nQueda oculto del POS y la tienda pública, pero la data histórica se conserva. Podés reactivarlo después editando el estado.`
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: `Archivar "${productName}"`,
+      description:
+        'Queda oculto del POS y la tienda pública, pero la data histórica se conserva. Podés reactivarlo después editando el estado.',
+      confirmLabel: 'Archivar',
+    });
+    if (!ok) return;
     setError(null);
     startTransition(async () => {
       const res = await archiveProduct(productId);
@@ -42,13 +49,15 @@ export function ProductDangerZone({
     });
   };
 
-  const onDelete = () => {
-    if (
-      !confirm(
-        `¿Eliminar definitivamente "${productName}"?\n\nSolo se puede eliminar si NUNCA fue vendido, comprado o tuvo movimientos de stock. Esta acción no se puede deshacer.`
-      )
-    )
-      return;
+  const onDelete = async () => {
+    const ok = await confirm({
+      title: `Eliminar "${productName}" definitivamente`,
+      description:
+        'Solo se puede eliminar si NUNCA fue vendido, comprado o tuvo movimientos de stock. Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     setError(null);
     startTransition(async () => {
       const res = await deleteProduct(productId);
@@ -56,7 +65,6 @@ export function ProductDangerZone({
         setError(res.error);
         return;
       }
-      // Borrado OK → volver a la lista
       router.push('/admin/productos');
     });
   };

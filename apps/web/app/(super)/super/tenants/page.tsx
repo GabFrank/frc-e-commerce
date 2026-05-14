@@ -21,7 +21,7 @@ export default async function TenantsListPage() {
       ) : (
         <div className="overflow-hidden rounded-md border">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full text-sm">
               <thead className="bg-muted/50 text-left text-muted-foreground">
                 <tr>
                   <th className="p-3">Nombre</th>

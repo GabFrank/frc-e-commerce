@@ -453,9 +453,9 @@ export function CreatePoForm({
                 para empezar.
               </div>
             ) : (
-              <div className="overflow-x-auto border-y">
-                <div className="min-w-[720px]">
-                <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+              <div className="border-y">
+                {/* Header — solo desktop */}
+                <div className="hidden items-center gap-2 border-b bg-muted/40 px-3 py-1.5 text-[10px] uppercase tracking-wide text-muted-foreground md:flex">
                   <div className="w-8 shrink-0" />
                   <div className="flex-1">Producto</div>
                   <div className="w-16 shrink-0 text-right">Cant.</div>
@@ -487,8 +487,7 @@ export function CreatePoForm({
                     />
                   ))}
                 </div>
-                </div>
-                <p className="border-t bg-muted/20 px-3 py-1.5 text-[10px] text-muted-foreground">
+                <p className="hidden border-t bg-muted/20 px-3 py-1.5 text-[10px] text-muted-foreground md:block">
                   Tip: <strong>Tab</strong> o <strong>Enter</strong> salta cantidad → costo →
                   precio venta → próxima línea. El precio de venta solo se aplica al{' '}
                   <strong>recibir</strong> la PO; si lo dejás vacío, no se modifica.
@@ -729,8 +728,8 @@ function LineRow({
 }) {
   const v = line.variant;
 
-  return (
-    <div className="flex items-start gap-2 px-3 py-2 text-sm">
+  const productBlock = (
+    <>
       {v.imageUrl ? (
         <Image
           src={v.imageUrl}
@@ -785,98 +784,161 @@ function LineRow({
           <span>Stock: {fmt(v.currentStock)}</span>
         </div>
       </div>
+    </>
+  );
 
-      <Input
-        type="number"
-        min={1}
-        value={line.quantity}
-        onChange={(e) => onChange({ quantity: Number(e.target.value) || 0 })}
-        onFocus={(e) => e.currentTarget.select()}
+  const qtyInput = (
+    <Input
+      type="number"
+      min={1}
+      value={line.quantity}
+      onChange={(e) => onChange({ quantity: Number(e.target.value) || 0 })}
+      onFocus={(e) => e.currentTarget.select()}
+      onKeyDown={handlePoInputKeyDown}
+      data-po-input="qty"
+      aria-label="Cantidad"
+      className="h-9 w-full text-right font-mono text-sm md:h-8 md:w-16"
+    />
+  );
+
+  const costCell = (
+    <div className="flex flex-col items-stretch gap-0.5 md:shrink-0">
+      <MoneyInput
+        value={line.unitCost || null}
+        onChange={(v) => onChange({ unitCost: v ?? 0 })}
+        decimalPlaces={getCurrencyDecimalPlaces(currencyCode)}
         onKeyDown={handlePoInputKeyDown}
-        data-po-input="qty"
-        aria-label="Cantidad"
-        className="h-8 w-16 shrink-0 text-right font-mono text-sm"
+        data-po-input="cost"
+        placeholder={`Costo ${currencyCode}`}
+        className="h-9 w-full text-right font-mono text-sm md:h-8 md:w-28"
       />
-
-      <div className="flex shrink-0 flex-col items-stretch gap-0.5">
-        <MoneyInput
-          value={line.unitCost || null}
-          onChange={(v) => onChange({ unitCost: v ?? 0 })}
-          decimalPlaces={getCurrencyDecimalPlaces(currencyCode)}
-          onKeyDown={handlePoInputKeyDown}
-          data-po-input="cost"
-          placeholder={`Costo ${currencyCode}`}
-          className="h-8 w-28 text-right font-mono text-sm"
-        />
-        {currencyCode !== primaryCurrencyCode && exchangeRate && exchangeRate > 0 && line.unitCost > 0 && (
-          <div className="flex justify-end text-[10px] text-muted-foreground">
-            ≈ {formatAmount(line.unitCost * exchangeRate, primaryCurrencyCode)}
-          </div>
-        )}
-        {v.lastUnitCost &&
-          (() => {
-            const canApply = v.lastUnitCost.currencyCode === currencyCode;
-            const dateLabel = v.lastUnitCost.receivedAt
-              ? new Date(v.lastUnitCost.receivedAt).toLocaleDateString('es-PY', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: '2-digit',
-                })
-              : null;
-            const content = (
-              <>
-                Último:{' '}
-                <strong className="text-foreground">
-                  {formatAmount(v.lastUnitCost.value, v.lastUnitCost.currencyCode)}
-                </strong>
-                {dateLabel && <> · {dateLabel}</>}
-              </>
-            );
-            return canApply ? (
-              <button
-                type="button"
-                onClick={() => onChange({ unitCost: v.lastUnitCost!.value })}
-                title="Click para aplicar al costo"
-                className="text-right text-[10px] text-muted-foreground hover:text-primary hover:underline"
-              >
-                {content}
-              </button>
-            ) : (
-              <div className="text-right text-[10px] text-muted-foreground">{content}</div>
-            );
-          })()}
-      </div>
-
-      <SellPriceCell
-        line={line}
-        currencyCode={currencyCode}
-        primaryCurrencyCode={primaryCurrencyCode}
-        onChange={onChange}
-      />
-
-      <MarginCell
-        line={line}
-        currencyCode={currencyCode}
-        primaryCurrencyCode={primaryCurrencyCode}
-        exchangeRate={exchangeRate}
-        marginFormula={marginFormula}
-      />
-
-      <div className="w-24 shrink-0 text-right font-mono text-sm">
-        {fmt(line.quantity * line.unitCost)}
-      </div>
-
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="h-7 w-7 shrink-0 text-destructive"
-        onClick={onRemove}
-        title="Quitar línea"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </Button>
+      {currencyCode !== primaryCurrencyCode && exchangeRate && exchangeRate > 0 && line.unitCost > 0 && (
+        <div className="flex justify-end text-[10px] text-muted-foreground">
+          ≈ {formatAmount(line.unitCost * exchangeRate, primaryCurrencyCode)}
+        </div>
+      )}
+      {v.lastUnitCost &&
+        (() => {
+          const canApply = v.lastUnitCost.currencyCode === currencyCode;
+          const dateLabel = v.lastUnitCost.receivedAt
+            ? new Date(v.lastUnitCost.receivedAt).toLocaleDateString('es-PY', {
+                day: '2-digit',
+                month: 'short',
+                year: '2-digit',
+              })
+            : null;
+          const content = (
+            <>
+              Último:{' '}
+              <strong className="text-foreground">
+                {formatAmount(v.lastUnitCost.value, v.lastUnitCost.currencyCode)}
+              </strong>
+              {dateLabel && <> · {dateLabel}</>}
+            </>
+          );
+          return canApply ? (
+            <button
+              type="button"
+              onClick={() => onChange({ unitCost: v.lastUnitCost!.value })}
+              title="Click para aplicar al costo"
+              className="text-right text-[10px] text-muted-foreground hover:text-primary hover:underline"
+            >
+              {content}
+            </button>
+          ) : (
+            <div className="text-right text-[10px] text-muted-foreground">{content}</div>
+          );
+        })()}
     </div>
+  );
+
+  return (
+    <>
+      {/* Desktop — fila horizontal compacta */}
+      <div className="hidden items-start gap-2 px-3 py-2 text-sm md:flex">
+        {productBlock}
+        {qtyInput}
+        {costCell}
+        <SellPriceCell
+          line={line}
+          currencyCode={currencyCode}
+          primaryCurrencyCode={primaryCurrencyCode}
+          onChange={onChange}
+        />
+        <MarginCell
+          line={line}
+          currencyCode={currencyCode}
+          primaryCurrencyCode={primaryCurrencyCode}
+          exchangeRate={exchangeRate}
+          marginFormula={marginFormula}
+        />
+        <div className="w-24 shrink-0 text-right font-mono text-sm">
+          {fmt(line.quantity * line.unitCost)}
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0 text-destructive"
+          onClick={onRemove}
+          title="Quitar línea"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+
+      {/* Mobile — card stackeado, sin scroll horizontal */}
+      <div className="flex flex-col gap-3 px-3 py-3 text-sm md:hidden">
+        <div className="flex items-start gap-2">
+          {productBlock}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 shrink-0 text-destructive"
+            onClick={onRemove}
+            aria-label="Quitar línea"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="space-y-1">
+            <span className="block text-xs text-muted-foreground">Cantidad</span>
+            {qtyInput}
+          </label>
+          <label className="space-y-1">
+            <span className="block text-xs text-muted-foreground">Costo {currencyCode}</span>
+            {costCell}
+          </label>
+          <label className="space-y-1">
+            <span className="block text-xs text-muted-foreground">Precio venta ({primaryCurrencyCode})</span>
+            <SellPriceCell
+              line={line}
+              currencyCode={currencyCode}
+              primaryCurrencyCode={primaryCurrencyCode}
+              onChange={onChange}
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="block text-xs text-muted-foreground">Margen</span>
+            <MarginCell
+              line={line}
+              currencyCode={currencyCode}
+              primaryCurrencyCode={primaryCurrencyCode}
+              exchangeRate={exchangeRate}
+              marginFormula={marginFormula}
+            />
+          </label>
+        </div>
+        <div className="flex items-baseline justify-between border-t pt-2">
+          <span className="text-xs text-muted-foreground">Subtotal</span>
+          <span className="font-mono text-base font-medium">
+            {fmt(line.quantity * line.unitCost)}
+          </span>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -898,7 +960,7 @@ function SellPriceCell({
   const sameCurrency = currencyCode === primaryCurrencyCode;
 
   return (
-    <div className="flex shrink-0 flex-col items-stretch gap-0.5">
+    <div className="flex flex-col items-stretch gap-0.5 md:shrink-0">
       <MoneyInput
         value={line.sellPrice}
         onChange={(v) => onChange({ sellPrice: v })}
@@ -906,7 +968,7 @@ function SellPriceCell({
         onKeyDown={handlePoInputKeyDown}
         data-po-input="sellPrice"
         placeholder="(sin cambio)"
-        className={`h-8 w-28 text-right font-mono text-sm ${
+        className={`h-9 w-full text-right font-mono text-sm md:h-8 md:w-28 ${
           hasNewPrice ? 'border-primary/60' : ''
         }`}
       />
@@ -965,7 +1027,7 @@ function MarginCell({
   } else {
     return (
       <div
-        className="w-16 shrink-0 text-right font-mono text-xs text-muted-foreground"
+        className="w-full text-right font-mono text-xs text-muted-foreground md:w-16 md:shrink-0"
         title="Cargá la cotización para calcular el margen en moneda primary"
       >
         —
@@ -976,7 +1038,7 @@ function MarginCell({
   if (price <= 0 || costInPrimary <= 0) {
     return (
       <div
-        className="w-16 shrink-0 text-right font-mono text-xs text-muted-foreground"
+        className="w-full text-right font-mono text-xs text-muted-foreground md:w-16 md:shrink-0"
         title="Cargá costo y precio para ver el margen"
       >
         —
@@ -1005,7 +1067,7 @@ function MarginCell({
 
   return (
     <div
-      className={`w-16 shrink-0 text-right font-mono text-sm ${tone}`}
+      className={`w-full text-right font-mono text-sm md:w-16 md:shrink-0 ${tone}`}
       title={`Margen ${marginPct.toFixed(1)}% ${formulaTip} · costo ${fmt(costInPrimary)} / venta ${fmt(price)}`}
     >
       {label}

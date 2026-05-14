@@ -36,7 +36,7 @@ export function ProveedoresClient({ initial }: { initial: Supplier[] }) {
             <p className="text-sm text-muted-foreground">Sin proveedores cargados todavía.</p>
           ) : (
             <div className="-mx-2 overflow-x-auto px-2">
-              <table className="w-full min-w-[600px] text-sm">
+              <table className="w-full text-sm">
                 <thead className="text-xs text-muted-foreground">
                   <tr>
                     <th className="text-left">Nombre</th>

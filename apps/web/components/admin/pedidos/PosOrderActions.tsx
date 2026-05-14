@@ -12,6 +12,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { cancelPosOrder, registerSaleReturn } from '@/lib/actions/order-return';
 
 type LineForReturn = {
@@ -34,6 +35,7 @@ type Props = {
 
 export function PosOrderActions({ orderId, channel, status, lines }: Props) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
   const [returnOpen, setReturnOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,11 +48,17 @@ export function PosOrderActions({ orderId, channel, status, lines }: Props) {
     (l) => l.quantity - l.returnedQuantity - l.cancelledQuantity > 0
   );
 
-  const onCancel = () => {
-    if (!confirm('¿Cancelar la venta POS completa? Revierte stock y caja si la sesión sigue abierta.')) return;
+  const onCancel = async () => {
+    const ok = await confirm({
+      title: 'Cancelar venta POS',
+      description: 'Revierte stock y caja si la sesión sigue abierta.',
+      confirmLabel: 'Cancelar venta',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await cancelPosOrder(orderId);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) await confirm({ mode: 'alert', title: 'Error', description: res.error });
       else router.refresh();
     });
   };
