@@ -1,0 +1,30 @@
+[Unit]
+Description=FRC E-commerce (Next.js standalone)
+Documentation=https://github.com/GabFrank/frc-e-commerce
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=frc
+Group=frc
+WorkingDirectory=/opt/frc-e-commerce/current/apps/web
+EnvironmentFile=/opt/frc-e-commerce/shared/.env
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+Environment=NODE_OPTIONS=--max-old-space-size=512
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/frc-e-commerce
+
+[Install]
+WantedBy=multi-user.target

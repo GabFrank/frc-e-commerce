@@ -21,8 +21,14 @@ async function main() {
 
   const SUPER_EMAIL = process.env.SEED_SUPER_EMAIL ?? 'super@frc-ecommerce.com';
   const SUPER_PASSWORD = process.env.SEED_SUPER_PASSWORD ?? 'superadmin123';
+  const TENANT_SLUG = process.env.SEED_TENANT_SLUG ?? 'demo';
+  const TENANT_NAME = process.env.SEED_TENANT_NAME ?? 'Tienda Demo';
+  const TENANT_SLOGAN = process.env.SEED_TENANT_SLOGAN ?? 'Probá la plataforma';
+  const RECEIPT_HEADER =
+    process.env.SEED_RECEIPT_HEADER ?? `${TENANT_NAME}\nGracias por su compra`;
+  const RECEIPT_FOOTER = process.env.SEED_RECEIPT_FOOTER ?? 'No vale como factura legal';
 
-  console.log('Seed iniciado');
+  console.log('Seed iniciado para tenant:', TENANT_SLUG);
 
   // 1. Superadmin
   const [existingSuper] = await db.select().from(user).where(eq(user.email, SUPER_EMAIL)).limit(1);
@@ -37,31 +43,36 @@ async function main() {
     if (!result.user) throw new Error('No se pudo crear superadmin');
     superUserId = result.user.id;
     await db.update(user).set({ isSuperAdmin: true }).where(eq(user.id, superUserId));
-    console.log('Superadmin creado:', SUPER_EMAIL, '/', SUPER_PASSWORD);
+    // Por seguridad NO se loguea el password — quedó tal como se pasó por env.
+    console.log('Superadmin creado:', SUPER_EMAIL);
   }
 
-  // 2. Tenant demo
-  const [existingDemo] = await db.select().from(tenant).where(eq(tenant.slug, 'demo')).limit(1);
+  // 2. Tenant inicial
+  const [existingDemo] = await db
+    .select()
+    .from(tenant)
+    .where(eq(tenant.slug, TENANT_SLUG))
+    .limit(1);
   let demoTenantId: string;
   if (existingDemo) {
     demoTenantId = existingDemo.id;
-    console.log('Tenant demo ya existe');
+    console.log(`Tenant ${TENANT_SLUG} ya existe`);
   } else {
     const [created] = await db
       .insert(tenant)
       .values({
-        name: 'Tienda Demo',
-        slug: 'demo',
+        name: TENANT_NAME,
+        slug: TENANT_SLUG,
         plan: 'free',
-        slogan: 'Probá la plataforma',
+        slogan: TENANT_SLOGAN,
         primaryColor: '#1f2937',
         secondaryColor: '#6b7280',
         accentColor: '#3b82f6',
       })
       .returning();
-    if (!created) throw new Error('No se pudo crear tenant demo');
+    if (!created) throw new Error(`No se pudo crear tenant ${TENANT_SLUG}`);
     demoTenantId = created.id;
-    console.log('Tenant demo creado:', demoTenantId);
+    console.log(`Tenant ${TENANT_SLUG} creado:`, demoTenantId);
   }
 
   // 3. Membership owner
@@ -173,7 +184,7 @@ async function main() {
     if (existing) continue;
     await db.insert(tenantCurrency).values({ tenantId: demoTenantId, ...tc });
   }
-  console.log('tenant_currency configurado para demo: PYG primary + USD/BRL activos');
+  console.log(`tenant_currency configurado para ${TENANT_SLUG}: PYG primary + USD/BRL activos`);
 
   // 6. exchange_rate inicial dummy (PYG primary; secundarias expresadas en PYG por 1 unidad)
   const INITIAL_RATES = [
@@ -221,10 +232,10 @@ async function main() {
       strictStock: false,
       ticketPrefix: 'POS',
       ticketCorrelative: 0,
-      receiptHeader: 'Tienda Demo\nGracias por su compra',
-      receiptFooter: 'No vale como factura legal',
+      receiptHeader: RECEIPT_HEADER,
+      receiptFooter: RECEIPT_FOOTER,
     });
-    console.log('pos_config default creado para demo');
+    console.log(`pos_config default creado para ${TENANT_SLUG}`);
   }
 
   console.log('Seed completado.');

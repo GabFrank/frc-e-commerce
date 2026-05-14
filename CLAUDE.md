@@ -18,7 +18,7 @@ Guía para agentes IA (Claude Code, otros) que trabajen en este repo.
 - **Email**: Resend + React Email
 - **Pagos MVP**: Stripe + transferencia/contraentrega/efectivo manuales
 - **Pagos post-MVP**: Bancard, UPay, Mercado Pago
-- **Hosting**: Render (web service + Postgres managed)
+- **Hosting prod**: DigitalOcean droplet (Fedora 39) + Postgres local en puerto 5551 — alpha/beta corren solo en local, no se deployan
 - **DNS/CDN**: Cloudflare
 - **Monitoreo**: Sentry + PostHog
 - **Tests**: Vitest + Playwright
@@ -185,15 +185,19 @@ Los conceptos quedan en `docs/plugins/*.md` desde la era Vendure como **referenc
 
 | App | Mecanismo | Trigger |
 |---|---|---|
-| `web` (alpha) | Render web service | Auto-deploy en push a `develop` |
-| `web` (production) | Render web service | Manual confirm en push a `master` |
-| Postgres | Render managed | Provisionado vía `render.yaml` |
-| Assets | Cloudflare R2 | Upload directo desde `lib/r2.ts` |
+| `web` (production) | Droplet DigitalOcean Fedora 39 (`159.203.86.103`), systemd + nginx | **Manual** desde GitHub Actions → "Deploy to production" → Run workflow |
+| Postgres | Local en el droplet, puerto 5551, DB `frc_ecommerce` | Bootstrap one-time |
+| Assets | Cloudflare R2 (`assets.frc-ecommerce.com`) | Upload directo desde `lib/r2.ts` |
+| TLS | Let's Encrypt wildcard (`*.frc-ecommerce.com`) vía Cloudflare DNS-01 | Auto-renueva con `certbot.timer` |
 
 Branch → environment:
-- `develop` → alpha
-- `release/beta` → beta
-- `master` → production
+- `develop` → alpha (solo local, NO se deploya)
+- `release/beta` → beta (solo local, NO se deploya)
+- `master` → production (deploy manual al droplet)
+
+Detalle completo del proceso, troubleshooting y bootstrap from-scratch en [`docs/deploy.md`](docs/deploy.md). Variables de entorno críticas en `/opt/frc-e-commerce/shared/.env` (template en `deploy/env.example`).
+
+**Multi-tenancy en prod**: wildcard DNS + cert + cookies cross-subdomain (`AUTH_COOKIE_DOMAIN=.frc-ecommerce.com`). Cada tenant accede vía `<slug>.frc-ecommerce.com`. El `proxy.ts` resuelve el tenant del subdomain del host. `enterTenantAsMember` y `switchToTenant` hacen redirect cross-subdomain absoluto cuando `NEXT_PUBLIC_ROOT_DOMAIN` está seteado.
 
 ## Cosas que NUNCA hacer en este repo
 

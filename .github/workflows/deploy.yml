@@ -1,74 +1,211 @@
-name: Deploy
+name: Deploy to production
+
+# Deploy manual al droplet de producción. Sin auto-deploy: el usuario dispara
+# explícitamente desde Actions → Deploy → Run workflow.
+#
+# Pre-requisitos:
+#   - Droplet bootstrapeado con deploy/bootstrap-droplet.sh
+#   - Secrets configurados:
+#       DROPLET_HOST       (IP pública del droplet)
+#       DROPLET_USER       (usuario SSH, típicamente "frc")
+#       DROPLET_SSH_KEY    (clave privada ed25519 del par de deploy)
+#       DROPLET_KNOWN_HOSTS (opcional, output de ssh-keyscan; si vacío usa accept-new)
 
 on:
   workflow_dispatch:
     inputs:
-      app:
-        description: App a deployar
-        required: true
-        type: choice
-        options:
-          - backend
-          - storefront
-      environment:
-        description: Ambiente destino
-        required: true
-        type: choice
-        options:
-          - alpha
-          - beta
-          - production
-      version:
-        description: Tag a deployar (ej backend@1.2.0). Vacío = HEAD del branch fuente.
+      ref:
+        description: 'Branch o tag a deployar (vacío = master)'
         required: false
+        default: 'master'
         type: string
+
+# Solo un deploy a la vez. Si llega otro mientras corre, se cancela.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 permissions:
   contents: read
   deployments: write
 
+env:
+  DOMAIN: app.frc-ecommerce.com
+  REMOTE_APP_DIR: /opt/frc-e-commerce
+  NODE_VERSION_FILE: .nvmrc
+
 jobs:
   deploy:
-    name: Deploy ${{ inputs.app }} → ${{ inputs.environment }}
+    name: Build + ship to droplet
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: production
+    timeout-minutes: 20
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.version || github.ref }}
+          ref: ${{ inputs.ref || 'master' }}
 
-      - name: Resolve Render service ID
-        id: service
-        run: |
-          case "${{ inputs.app }}-${{ inputs.environment }}" in
-            backend-alpha) echo "id=${{ secrets.RENDER_BACKEND_ALPHA }}" >> "$GITHUB_OUTPUT" ;;
-            backend-beta) echo "id=${{ secrets.RENDER_BACKEND_BETA }}" >> "$GITHUB_OUTPUT" ;;
-            backend-production) echo "id=${{ secrets.RENDER_BACKEND_PROD }}" >> "$GITHUB_OUTPUT" ;;
-            storefront-alpha) echo "id=${{ secrets.RENDER_STOREFRONT_ALPHA }}" >> "$GITHUB_OUTPUT" ;;
-            storefront-beta) echo "id=${{ secrets.RENDER_STOREFRONT_BETA }}" >> "$GITHUB_OUTPUT" ;;
-            storefront-production) echo "id=${{ secrets.RENDER_STOREFRONT_PROD }}" >> "$GITHUB_OUTPUT" ;;
-            *) echo "Unknown combo" && exit 1 ;;
-          esac
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
 
-      - name: Trigger Render deploy
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ${{ env.NODE_VERSION_FILE }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+          NODE_ENV: production
+        run: pnpm exec turbo run build --filter=@frc-e-commerce/web
+
+      - name: Package standalone bundle
         run: |
-          curl -fsSL -X POST \
-            "https://api.render.com/v1/services/${{ steps.service.outputs.id }}/deploys" \
-            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            -H "Content-Type: application/json" \
-            -d '{"clearCache":"do_not_clear"}'
+          set -euo pipefail
+          cd apps/web
+
+          # Next pone el standalone bajo .next/standalone respetando el monorepo.
+          # Hay que copiar manualmente public/ y .next/static/ al destino esperado.
+          mkdir -p .next/standalone/apps/web/public
+          cp -r public/. .next/standalone/apps/web/public/ 2>/dev/null || true
+
+          mkdir -p .next/standalone/apps/web/.next
+          cp -r .next/static .next/standalone/apps/web/.next/static
+
+          # Tarball del bundle completo. Se descomprime tal cual en el droplet.
+          tar -czf /tmp/frc-ecommerce.tar.gz -C .next/standalone .
+
+          # Resumen visible en logs del workflow
+          echo "Tamaño del bundle:"
+          du -h /tmp/frc-ecommerce.tar.gz
+
+      - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DROPLET_KNOWN_HOSTS }}
+          HOST: ${{ secrets.DROPLET_HOST }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          if [[ -n "${KNOWN_HOSTS:-}" ]]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            # Sin KNOWN_HOSTS prepoblado, hacemos keyscan al vuelo (TOFU).
+            ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve release name
+        id: rel
+        run: |
+          REL="$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::8}"
+          echo "name=$REL" >> "$GITHUB_OUTPUT"
+          echo "Release: $REL"
+
+      - name: Upload bundle
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          set -euo pipefail
+          scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new \
+            /tmp/frc-ecommerce.tar.gz "$USER@$HOST:/tmp/frc-ecommerce.tar.gz"
+
+      - name: Atomic swap + restart
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+          REL: ${{ steps.rel.outputs.name }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new "$USER@$HOST" bash -s <<EOF
+            set -euo pipefail
+            APP_DIR=${{ env.REMOTE_APP_DIR }}
+            REL_DIR="\$APP_DIR/releases/${REL}"
+
+            # 1. Extraer el nuevo release (sin tocar 'current' aún)
+            mkdir -p "\$REL_DIR"
+            tar -xzf /tmp/frc-ecommerce.tar.gz -C "\$REL_DIR"
+            rm /tmp/frc-ecommerce.tar.gz
+
+            # 2. Linkear el .env compartido al release (Next lo lee desde cwd al iniciar,
+            #    pero systemd ya lo carga vía EnvironmentFile; este symlink es por si
+            #    se corre standalone manualmente)
+            ln -sfn "\$APP_DIR/shared/.env" "\$REL_DIR/apps/web/.env"
+
+            # 3. Swap atómico del symlink current
+            ln -sfn "\$REL_DIR" "\$APP_DIR/current"
+
+            # 4. Restart servicio (requiere sudoers configurado por bootstrap)
+            sudo /usr/bin/systemctl restart frc-ecommerce.service
+
+            # 5. Rotación: mantener las últimas 5 releases
+            cd "\$APP_DIR/releases"
+            ls -1t | tail -n +6 | xargs -r rm -rf
+          EOF
+
+      - name: Wait for service to be ready
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          set -euo pipefail
+          # NB: no usar --quiet porque la regla de sudoers compara argumentos
+          # exactos y no permite flags extra. is-active retorna "active" / "inactive"
+          # con exit code apropiado.
+          for i in $(seq 1 45); do
+            status=$(ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new "$USER@$HOST" \
+              'sudo /usr/bin/systemctl is-active frc-ecommerce.service' 2>/dev/null || echo "unknown")
+            if [[ "$status" == "active" ]]; then
+              echo "Servicio activo en intento $i"
+              exit 0
+            fi
+            echo "Intento $i: $status"
+            sleep 2
+          done
+          echo "El servicio no llegó a active después de 90s" >&2
+          ssh -i ~/.ssh/id_ed25519 "$USER@$HOST" 'sudo /usr/bin/systemctl status frc-ecommerce.service' || true
+          exit 1
+
+      - name: Healthcheck público
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 15); do
+            code="$(curl -s -o /tmp/health.json -w '%{http_code}' "https://${DOMAIN}/api/health" || echo 000)"
+            if [[ "$code" == "200" ]]; then
+              echo "Healthcheck OK ($code)"
+              cat /tmp/health.json
+              exit 0
+            fi
+            echo "Intento $i: HTTP $code"
+            sleep 3
+          done
+          echo "Healthcheck falló — la app no responde 200 en /api/health" >&2
+          cat /tmp/health.json 2>/dev/null || true
+          exit 1
 
       - name: Mark GitHub deployment
+        if: success()
         uses: actions/github-script@v7
         with:
           script: |
             await github.rest.repos.createDeployment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: '${{ inputs.version || github.ref }}',
-              environment: '${{ inputs.environment }}',
+              ref: '${{ inputs.ref || 'master' }}',
+              environment: 'production',
               auto_merge: false,
               required_contexts: [],
-              description: 'Deploy ${{ inputs.app }} via workflow'
+              description: 'Deploy ${{ steps.rel.outputs.name }} to droplet'
             });

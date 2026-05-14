@@ -10,6 +10,23 @@ import { requireSuperAdmin, getSession } from '@/lib/auth/guards';
 import { TENANT_OVERRIDE_COOKIE } from '@/lib/tenant';
 import { createTenantSchema, type CreateTenantInput } from '@/lib/validators/tenant';
 
+/**
+ * Decide a dónde redirigir al "entrar" a un tenant.
+ * - Si NEXT_PUBLIC_ROOT_DOMAIN está seteado, hace redirect absoluto al
+ *   subdominio del tenant (ej. https://sublime.frc-ecommerce.com/admin).
+ *   Esto es necesario en producción multi-tenant donde proxy.ts resuelve el
+ *   tenant a partir del host, no de la cookie.
+ * - En dev (sin ROOT_DOMAIN) hace redirect relativo, dejando que la cookie
+ *   TENANT_OVERRIDE_COOKIE resuelva el tenant.
+ */
+function redirectToTenantAdmin(slug: string): never {
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN;
+  if (rootDomain) {
+    redirect(`https://${slug}.${rootDomain}/admin`);
+  }
+  redirect('/admin');
+}
+
 export type CreateTenantResult =
   | { ok: true; tenantId: string; slug: string }
   | { ok: false; error: string };
@@ -118,7 +135,7 @@ export async function switchToTenant(tenantId: string): Promise<void> {
     path: '/',
     maxAge: 60 * 60 * 24,
   });
-  redirect('/admin');
+  redirectToTenantAdmin(t.slug);
 }
 
 export async function clearTenantOverride(): Promise<void> {
@@ -169,7 +186,7 @@ export async function enterTenantAsMember(tenantId: string): Promise<void> {
     path: '/',
     maxAge: 60 * 60 * 24,
   });
-  redirect('/admin');
+  redirectToTenantAdmin(t.slug);
 }
 
 /**
