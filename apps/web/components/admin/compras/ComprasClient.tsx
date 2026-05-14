@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import {
   receivePurchaseOrder,
   cancelPurchaseOrder,
@@ -197,60 +198,104 @@ export function ComprasClient({
                 : 'Sin órdenes todavía.'}
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
-                <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 text-left">PO</th>
-                    <th className="px-3 py-2 text-left">Proveedor</th>
-                    <th className="px-3 py-2 text-left">Estado</th>
-                    <th className="px-3 py-2 text-right">Total</th>
-                    <th className="px-3 py-2 text-left">Moneda</th>
-                    <th className="px-3 py-2 text-left">Creada</th>
-                    <th className="px-3 py-2" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((p) => (
-                    <tr key={p.id} className="border-t hover:bg-muted/30">
-                      <td className="px-3 py-2 font-mono text-xs">
+            <>
+              {/* Desktop — tabla */}
+              <div className="hidden md:block">
+                <table className="w-full text-sm">
+                  <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 text-left">PO</th>
+                      <th className="px-3 py-2 text-left">Proveedor</th>
+                      <th className="px-3 py-2 text-left">Estado</th>
+                      <th className="px-3 py-2 text-right">Total</th>
+                      <th className="px-3 py-2 text-left">Moneda</th>
+                      <th className="px-3 py-2 text-left">Creada</th>
+                      <th className="px-3 py-2" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((p) => (
+                      <tr key={p.id} className="border-t hover:bg-muted/30">
+                        <td className="px-3 py-2 font-mono text-xs">
+                          <Link
+                            href={`/admin/compras/${p.id}`}
+                            className="text-primary hover:underline"
+                          >
+                            {p.poNumber}
+                          </Link>
+                        </td>
+                        <td className="px-3 py-2">{p.supplierName}</td>
+                        <td className="px-3 py-2">
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-xs ${
+                              STATUS_COLOR[p.status] ?? 'bg-muted'
+                            }`}
+                          >
+                            {STATUS_LABEL[p.status] ?? p.status}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono">
+                          {formatAmount(Number(p.totalInCurrency), p.currencyCode)}
+                        </td>
+                        <td className="px-3 py-2 text-xs">{p.currencyCode}</td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">
+                          {new Date(p.createdAt).toLocaleDateString('es-PY')}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button size="sm" variant="ghost" asChild>
+                              <Link href={`/admin/compras/${p.id}`}>Ver</Link>
+                            </Button>
+                            <POActions po={p} onRefresh={() => router.refresh()} />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile — cards stackeados */}
+              <div className="divide-y md:hidden">
+                {rows.map((p) => (
+                  <div key={p.id} className="space-y-2 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
                         <Link
                           href={`/admin/compras/${p.id}`}
-                          className="text-primary hover:underline"
+                          className="break-all font-mono text-xs text-primary hover:underline"
                         >
                           {p.poNumber}
                         </Link>
-                      </td>
-                      <td className="px-3 py-2">{p.supplierName}</td>
-                      <td className="px-3 py-2">
-                        <span
-                          className={`rounded px-1.5 py-0.5 text-xs ${
-                            STATUS_COLOR[p.status] ?? 'bg-muted'
-                          }`}
-                        >
-                          {STATUS_LABEL[p.status] ?? p.status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-right font-mono">
-                        {formatAmount(Number(p.totalInCurrency), p.currencyCode)}
-                      </td>
-                      <td className="px-3 py-2 text-xs">{p.currencyCode}</td>
-                      <td className="px-3 py-2 text-xs text-muted-foreground">
+                        <div className="mt-0.5 truncate text-sm font-medium">{p.supplierName}</div>
+                      </div>
+                      <span
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-xs ${
+                          STATUS_COLOR[p.status] ?? 'bg-muted'
+                        }`}
+                      >
+                        {STATUS_LABEL[p.status] ?? p.status}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between text-sm">
+                      <span className="text-xs text-muted-foreground">
                         {new Date(p.createdAt).toLocaleDateString('es-PY')}
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button size="sm" variant="ghost" asChild>
-                            <Link href={`/admin/compras/${p.id}`}>Ver</Link>
-                          </Button>
-                          <POActions po={p} onRefresh={() => router.refresh()} />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </span>
+                      <span className="font-mono font-medium">
+                        {formatAmount(Number(p.totalInCurrency), p.currencyCode)}{' '}
+                        <span className="text-xs text-muted-foreground">{p.currencyCode}</span>
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-end gap-1 border-t pt-2">
+                      <Button size="sm" variant="ghost" asChild>
+                        <Link href={`/admin/compras/${p.id}`}>Ver</Link>
+                      </Button>
+                      <POActions po={p} onRefresh={() => router.refresh()} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -305,32 +350,48 @@ export function ComprasClient({
 
 function POActions({ po, onRefresh }: { po: POView; onRefresh: () => void }) {
   const [pending, startTransition] = useTransition();
+  const confirm = useConfirm();
 
-  const onReceive = () => {
-    if (!confirm(`¿Recibir PO ${po.poNumber}? Esto suma stock y actualiza costos.`)) return;
+  const onReceive = async () => {
+    const ok = await confirm({
+      title: `Recibir PO ${po.poNumber}`,
+      description: 'Esto suma stock y actualiza costos promedio.',
+      confirmLabel: 'Recibir',
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await receivePurchaseOrder({ purchaseOrderId: po.id });
-      if (!res.ok) alert(res.error);
+      if (!res.ok) await confirm({ mode: 'alert', title: 'Error', description: res.error });
       else onRefresh();
     });
   };
 
-  const onCancel = () => {
-    if (!confirm(`¿Cancelar PO ${po.poNumber}? Si ya estaba recibida, se revertirá el stock.`))
-      return;
+  const onCancel = async () => {
+    const ok = await confirm({
+      title: `Cancelar PO ${po.poNumber}`,
+      description: 'Si ya estaba recibida, se revertirá el stock.',
+      confirmLabel: 'Cancelar PO',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await cancelPurchaseOrder(po.id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) await confirm({ mode: 'alert', title: 'Error', description: res.error });
       else onRefresh();
     });
   };
 
-  const onDeleteDraft = () => {
-    if (!confirm(`¿Eliminar el borrador ${po.poNumber}? Esta acción no se puede deshacer.`))
-      return;
+  const onDeleteDraft = async () => {
+    const ok = await confirm({
+      title: `Eliminar borrador ${po.poNumber}`,
+      description: 'Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await deleteDraftPurchaseOrder(po.id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) await confirm({ mode: 'alert', title: 'Error', description: res.error });
       else onRefresh();
     });
   };

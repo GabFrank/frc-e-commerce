@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { LockKeyhole, Coins, ShoppingCart, MoreVertical } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { formatAmount } from '@frc-e-commerce/shared-utils';
 import {
   DropdownMenu,
@@ -88,6 +89,7 @@ export function PosShell({
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const cart = usePosCart();
+  const confirm = useConfirm();
   const totals = calcTotal({
     lines: cart.lines,
     generalDiscount: cart.generalDiscount,
@@ -110,7 +112,11 @@ export function PosShell({
         e.preventDefault();
         if (cart.lines.length === 0) return;
         if (!activeSession) {
-          alert('Necesitás abrir caja antes de cobrar');
+          void confirm({
+            mode: 'alert',
+            title: 'Sin caja abierta',
+            description: 'Necesitás abrir caja antes de cobrar.',
+          });
           return;
         }
         setCheckoutOpen(true);
@@ -118,7 +124,7 @@ export function PosShell({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [activeSession, cart.lines.length]);
+  }, [activeSession, cart.lines.length, confirm]);
 
   const onPickProduct = (productId: string, productName: string, single: PosVariantOption | null) => {
     setSearchOpen(false);
@@ -283,7 +289,7 @@ export function PosShell({
           </div>
         </div>
 
-        <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
+        <div className="hidden rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground md:block">
           <div className="font-medium text-foreground mb-1">Atajos</div>
           <ul className="grid grid-cols-2 gap-1">
             <li>F2 — Buscar producto</li>

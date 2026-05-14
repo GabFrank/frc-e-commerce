@@ -94,7 +94,7 @@ export function ProductsListClient({ rows, total, filters }: Props) {
     <div className="space-y-4">
       {/* Filtros */}
       <div className="flex flex-wrap items-end gap-2 rounded-md border bg-card p-3">
-        <form onSubmit={submitSearch} className="flex-1 min-w-[200px]">
+        <form onSubmit={submitSearch} className="flex-1">
           <label className="text-sm text-muted-foreground md:text-xs">Búsqueda</label>
           <Input
             value={q}
@@ -175,7 +175,7 @@ export function ProductsListClient({ rows, total, filters }: Props) {
       ) : (
         <div className="overflow-hidden rounded-md border">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-muted/80 text-left text-muted-foreground backdrop-blur">
                 <tr>
                   <th className="w-8 px-2 py-2"></th>

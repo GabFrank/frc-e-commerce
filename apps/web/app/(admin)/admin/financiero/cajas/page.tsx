@@ -82,7 +82,7 @@ export default async function CajasPage() {
           <CardDescription>Últimas 200 sesiones</CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto p-0">
-          <table className="w-full min-w-[900px] text-sm">
+          <table className="w-full text-sm">
             <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
               <tr>
                 <th className="px-3 py-2 text-left">Estado</th>

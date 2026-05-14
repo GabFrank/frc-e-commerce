@@ -434,25 +434,116 @@ export function CheckoutDialog({
               </div>
             </div>
 
-            <div className="-mx-1 overflow-x-auto px-1">
-              <table className="w-full min-w-[640px] text-sm">
-                <thead className="text-xs text-muted-foreground">
-                  <tr>
-                    <th className="text-left">Tipo</th>
-                    <th className="text-left">Método</th>
-                    <th className="text-left">Moneda</th>
-                    <th className="text-right">Monto</th>
-                    <th className="text-right">Cotiz.</th>
-                    <th className="text-right">En {primary}</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.id} className="border-t">
-                      <td className="py-1">
+            <div>
+              {/* Desktop — tabla */}
+              <div className="hidden md:block">
+                <table className="w-full text-sm">
+                  <thead className="text-xs text-muted-foreground">
+                    <tr>
+                      <th className="text-left">Tipo</th>
+                      <th className="text-left">Método</th>
+                      <th className="text-left">Moneda</th>
+                      <th className="text-right">Monto</th>
+                      <th className="text-right">Cotiz.</th>
+                      <th className="text-right">En {primary}</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr key={r.id} className="border-t">
+                        <td className="py-1">
+                          <select
+                            className="h-9 rounded border bg-background px-2 text-sm"
+                            value={r.kind}
+                            onChange={(e) =>
+                              updateRow(r.id, { kind: e.target.value as Row['kind'] })
+                            }
+                          >
+                            <option value="payment">Pago</option>
+                            <option value="change">Vuelto</option>
+                          </select>
+                        </td>
+                        <td>
+                          <select
+                            className="h-9 rounded border bg-background px-2 text-sm"
+                            value={r.paymentMethod ?? ''}
+                            onChange={(e) =>
+                              updateRow(r.id, { paymentMethod: e.target.value })
+                            }
+                          >
+                            {enabledMethods.map((m) => (
+                              <option key={m} value={m}>
+                                {m}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          <select
+                            className="h-9 rounded border bg-background px-2 text-sm"
+                            value={r.currencyCode ?? ''}
+                            onChange={(e) =>
+                              updateRow(r.id, { currencyCode: e.target.value })
+                            }
+                          >
+                            {enabledCurrencies.map((c) => (
+                              <option key={c.code} value={c.code}>
+                                {c.code}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          <MoneyInput
+                            value={r.amount || null}
+                            onChange={(v) => updateRow(r.id, { amount: v ?? 0 })}
+                            decimalPlaces={getCurrencyDecimalPlaces(r.currencyCode ?? primary)}
+                            className="ml-auto h-8 w-28 text-right"
+                          />
+                        </td>
+                        <td>
+                          <MoneyInput
+                            value={r.exchangeRateSnapshot ? Number(r.exchangeRateSnapshot) : null}
+                            onChange={(v) =>
+                              updateRow(r.id, {
+                                exchangeRateSnapshot: v === null ? null : String(v),
+                              })
+                            }
+                            decimalPlaces={primaryDecimalPlaces}
+                            placeholder={r.currencyCode === primary ? '1' : ''}
+                            disabled={r.currencyCode === primary}
+                            className="ml-auto h-8 w-24 text-right text-xs"
+                          />
+                        </td>
+                        <td className="text-right font-mono">
+                          {formatAmount(computeAmountInPrimary(r), primary)}
+                        </td>
+                        <td>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => removeRow(r.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile — cards stackeados */}
+              <div className="space-y-3 md:hidden">
+                {rows.map((r) => (
+                  <div key={r.id} className="space-y-2 rounded-md border bg-card p-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="space-y-1 text-xs">
+                        <span className="block text-muted-foreground">Tipo</span>
                         <select
-                          className="h-9 rounded border bg-background px-2 text-sm"
+                          className="h-9 w-full rounded border bg-background px-2 text-sm"
                           value={r.kind}
                           onChange={(e) =>
                             updateRow(r.id, { kind: e.target.value as Row['kind'] })
@@ -461,14 +552,13 @@ export function CheckoutDialog({
                           <option value="payment">Pago</option>
                           <option value="change">Vuelto</option>
                         </select>
-                      </td>
-                      <td>
+                      </label>
+                      <label className="space-y-1 text-xs">
+                        <span className="block text-muted-foreground">Método</span>
                         <select
-                          className="h-9 rounded border bg-background px-2 text-sm"
+                          className="h-9 w-full rounded border bg-background px-2 text-sm"
                           value={r.paymentMethod ?? ''}
-                          onChange={(e) =>
-                            updateRow(r.id, { paymentMethod: e.target.value })
-                          }
+                          onChange={(e) => updateRow(r.id, { paymentMethod: e.target.value })}
                         >
                           {enabledMethods.map((m) => (
                             <option key={m} value={m}>
@@ -476,14 +566,13 @@ export function CheckoutDialog({
                             </option>
                           ))}
                         </select>
-                      </td>
-                      <td>
+                      </label>
+                      <label className="space-y-1 text-xs">
+                        <span className="block text-muted-foreground">Moneda</span>
                         <select
-                          className="h-9 rounded border bg-background px-2 text-sm"
+                          className="h-9 w-full rounded border bg-background px-2 text-sm"
                           value={r.currencyCode ?? ''}
-                          onChange={(e) =>
-                            updateRow(r.id, { currencyCode: e.target.value })
-                          }
+                          onChange={(e) => updateRow(r.id, { currencyCode: e.target.value })}
                         >
                           {enabledCurrencies.map((c) => (
                             <option key={c.code} value={c.code}>
@@ -491,46 +580,56 @@ export function CheckoutDialog({
                             </option>
                           ))}
                         </select>
-                      </td>
-                      <td>
+                      </label>
+                      <label className="space-y-1 text-xs">
+                        <span className="block text-muted-foreground">Monto</span>
                         <MoneyInput
                           value={r.amount || null}
                           onChange={(v) => updateRow(r.id, { amount: v ?? 0 })}
                           decimalPlaces={getCurrencyDecimalPlaces(r.currencyCode ?? primary)}
-                          className="ml-auto h-7 w-28 text-right"
+                          className="h-9 w-full text-right"
                         />
-                      </td>
-                      <td>
-                        <MoneyInput
-                          value={r.exchangeRateSnapshot ? Number(r.exchangeRateSnapshot) : null}
-                          onChange={(v) =>
-                            updateRow(r.id, {
-                              exchangeRateSnapshot: v === null ? null : String(v),
-                            })
-                          }
-                          decimalPlaces={primaryDecimalPlaces}
-                          placeholder={r.currencyCode === primary ? '1' : ''}
-                          disabled={r.currencyCode === primary}
-                          className="ml-auto h-7 w-24 text-right text-xs"
-                        />
-                      </td>
-                      <td className="text-right font-mono">
-                        {formatAmount(computeAmountInPrimary(r), primary)}
-                      </td>
-                      <td>
+                      </label>
+                      {r.currencyCode !== primary && (
+                        <label className="space-y-1 text-xs">
+                          <span className="block text-muted-foreground">Cotización</span>
+                          <MoneyInput
+                            value={r.exchangeRateSnapshot ? Number(r.exchangeRateSnapshot) : null}
+                            onChange={(v) =>
+                              updateRow(r.id, {
+                                exchangeRateSnapshot: v === null ? null : String(v),
+                              })
+                            }
+                            decimalPlaces={primaryDecimalPlaces}
+                            placeholder=""
+                            className="h-9 w-full text-right"
+                          />
+                        </label>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between border-t pt-2 text-sm">
+                      <span className="text-xs text-muted-foreground">
+                        En {primary}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono">
+                          {formatAmount(computeAmountInPrimary(r), primary)}
+                        </span>
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-6 w-6 text-destructive"
+                          className="h-9 w-9 text-destructive"
                           onClick={() => removeRow(r.id)}
+                          aria-label="Quitar fila"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Button variant="outline" size="sm" onClick={addRow}>
                   <Plus className="mr-1 h-3 w-3" /> Agregar fila

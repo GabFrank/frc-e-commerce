@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import {
   receivePurchaseOrder,
   cancelPurchaseOrder,
@@ -18,36 +19,49 @@ type Props = {
 
 export function PoDetailActions({ poId, poNumber, status }: Props) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
 
-  const onReceive = () => {
-    if (!confirm(`¿Recibir PO ${poNumber}? Esto suma stock y actualiza costos promedio.`)) return;
+  const onReceive = async () => {
+    const ok = await confirm({
+      title: `Recibir PO ${poNumber}`,
+      description: 'Esto suma stock y actualiza costos promedio.',
+      confirmLabel: 'Recibir',
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await receivePurchaseOrder({ purchaseOrderId: poId });
-      if (!res.ok) alert(res.error);
+      if (!res.ok) await confirm({ mode: 'alert', title: 'Error', description: res.error });
       else router.refresh();
     });
   };
 
-  const onCancel = () => {
-    if (
-      !confirm(
-        `¿Cancelar PO ${poNumber}? Si ya estaba recibida, se revierte el stock y se ajusta avg_cost.`
-      )
-    )
-      return;
+  const onCancel = async () => {
+    const ok = await confirm({
+      title: `Cancelar PO ${poNumber}`,
+      description: 'Si ya estaba recibida, se revierte el stock y se ajusta avg_cost.',
+      confirmLabel: 'Cancelar PO',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await cancelPurchaseOrder(poId);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) await confirm({ mode: 'alert', title: 'Error', description: res.error });
       else router.refresh();
     });
   };
 
-  const onDeleteDraft = () => {
-    if (!confirm(`¿Eliminar el borrador ${poNumber}? Esta acción no se puede deshacer.`)) return;
+  const onDeleteDraft = async () => {
+    const ok = await confirm({
+      title: `Eliminar borrador ${poNumber}`,
+      description: 'Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await deleteDraftPurchaseOrder(poId);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) await confirm({ mode: 'alert', title: 'Error', description: res.error });
       else router.push('/admin/compras');
     });
   };

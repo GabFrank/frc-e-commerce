@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { bulkCreateVariantsByMatrix } from '@/lib/actions/product';
 import { ADULT_SIZES, KIDS_SIZES, type SizeKind } from '@/lib/clothing/sizes';
 
@@ -46,6 +47,7 @@ export function MatrixVariantDialog({
   onClose,
 }: Props) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -262,9 +264,11 @@ export function MatrixVariantDialog({
       // Solo avisamos cuando hubo SKUs duplicados (un evento inesperado para el usuario).
       // Las exclusiones explícitas ya están reflejadas visualmente en la grilla.
       if (res.duplicatesSkipped > 0) {
-        alert(
-          `Variantes creadas: ${res.created}. ${res.duplicatesSkipped} omitidas por SKU duplicado con variantes existentes en el catálogo.\nProbá un prefix SKU distinto si querés que esos combos se generen.`
-        );
+        await confirm({
+          mode: 'alert',
+          title: `Variantes creadas: ${res.created}`,
+          description: `${res.duplicatesSkipped} omitidas por SKU duplicado con variantes existentes en el catálogo. Probá un prefix SKU distinto si querés que esos combos se generen.`,
+        });
       }
       reset();
       onClose();

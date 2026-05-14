@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { removeTenantMember } from '@/lib/actions/tenant';
 
 export function RemoveMemberButton({
@@ -12,9 +13,16 @@ export function RemoveMemberButton({
   membershipId: string;
 }) {
   const [loading, setLoading] = useState(false);
+  const confirm = useConfirm();
 
   const handleClick = async () => {
-    if (!confirm('¿Quitar este miembro de la tienda?')) return;
+    const ok = await confirm({
+      title: 'Quitar miembro',
+      description: '¿Quitar este miembro de la tienda?',
+      confirmLabel: 'Quitar',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     setLoading(true);
     await removeTenantMember(tenantId, membershipId);
     setLoading(false);
