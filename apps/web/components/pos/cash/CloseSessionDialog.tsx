@@ -180,7 +180,8 @@ export function CloseSessionDialog({ open, cashSessionId, openCurrencies, ctx, o
               </div>
               <div className="rounded-md border p-3">
                 <div className="font-medium">Cuadre por moneda</div>
-                <table className="mt-2 w-full text-xs">
+                <div className="-mx-1 mt-2 overflow-x-auto px-1">
+                <table className="w-full min-w-[480px] text-xs">
                   <thead className="text-muted-foreground">
                     <tr>
                       <th className="text-left">Moneda</th>
@@ -221,6 +222,7 @@ export function CloseSessionDialog({ open, cashSessionId, openCurrencies, ctx, o
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
               <div className="rounded-md border p-3">
                 <div className="font-medium">Ventas por método</div>

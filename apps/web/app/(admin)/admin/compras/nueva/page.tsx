@@ -58,9 +58,9 @@ export default async function NuevaCompraPage({
 
   return (
     <div className="space-y-6 max-w-5xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <h1 className="break-words text-xl font-semibold sm:text-2xl">
             {initialDraft ? `Editar borrador · ${initialDraft.poNumber}` : 'Nueva orden de compra'}
           </h1>
           <p className="text-sm text-muted-foreground">

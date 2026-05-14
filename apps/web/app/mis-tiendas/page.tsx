@@ -36,10 +36,10 @@ export default async function MisTiendasPage() {
   if (isSuperAdmin && memberships.length === 0) redirect('/super');
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12 space-y-6">
-      <div className="flex items-baseline justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Mis tiendas</h1>
+    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:py-12">
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-baseline">
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold sm:text-2xl">Mis tiendas</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Hola <span className="font-medium">{session.user.name}</span> — elegí qué tienda
             querés administrar.
@@ -66,14 +66,14 @@ export default async function MisTiendasPage() {
         <div className="grid gap-3">
           {memberships.map((m) => (
             <Card key={m.membershipId}>
-              <CardContent className="flex items-center justify-between p-5">
-                <div>
+              <CardContent className="flex flex-col items-stretch gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                <div className="min-w-0">
                   <h2 className="font-semibold">{m.tenantName}</h2>
-                  <p className="text-xs text-muted-foreground font-mono">
+                  <p className="break-all font-mono text-xs text-muted-foreground">
                     {m.tenantSlug}.frc-ecommerce.com
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Rol: <span className="capitalize font-medium">{m.role}</span>
+                    Rol: <span className="font-medium capitalize">{m.role}</span>
                     {m.tenantStatus !== 'active' && (
                       <span className="ml-2 text-amber-600 dark:text-amber-400">({m.tenantStatus})</span>
                     )}

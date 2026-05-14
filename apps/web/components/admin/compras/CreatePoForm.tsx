@@ -453,7 +453,8 @@ export function CreatePoForm({
                 para empezar.
               </div>
             ) : (
-              <div className="border-y">
+              <div className="overflow-x-auto border-y">
+                <div className="min-w-[720px]">
                 <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                   <div className="w-8 shrink-0" />
                   <div className="flex-1">Producto</div>
@@ -485,6 +486,7 @@ export function CreatePoForm({
                       onRemove={() => setLines((prev) => prev.filter((x) => x.id !== line.id))}
                     />
                   ))}
+                </div>
                 </div>
                 <p className="border-t bg-muted/20 px-3 py-1.5 text-[10px] text-muted-foreground">
                   Tip: <strong>Tab</strong> o <strong>Enter</strong> salta cantidad → costo →

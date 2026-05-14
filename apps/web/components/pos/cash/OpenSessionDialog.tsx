@@ -95,12 +95,12 @@ export function OpenSessionDialog({
                 const s = byCurrency[c.code]!;
                 return (
                   <div key={c.code} className="rounded-md border p-3">
-                    <div className="flex items-center justify-between">
-                      <div>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
                         <span className="font-medium">{c.code}</span>{' '}
                         <span className="text-sm text-muted-foreground">{c.name}</span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex shrink-0 items-center gap-2">
                         <span className="text-xs text-muted-foreground">
                           {s.enabled ? 'Activa' : 'Inactiva'}
                         </span>
@@ -117,8 +117,8 @@ export function OpenSessionDialog({
                       </div>
                     </div>
                     {s.enabled && (
-                      <div className="mt-2 flex items-end gap-2">
-                        <label className="flex-1 text-sm">
+                      <div className="mt-2 grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_auto_auto]">
+                        <label className="text-sm">
                           <span className="block mb-1 text-xs text-muted-foreground">
                             Monto declarado ({c.symbol})
                           </span>

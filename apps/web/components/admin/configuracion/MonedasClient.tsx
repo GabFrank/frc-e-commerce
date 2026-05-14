@@ -70,9 +70,9 @@ export function MonedasClient({ initial }: Props) {
           {initial.map((tc) => (
             <div
               key={tc.currency.code}
-              className="flex items-center gap-4 rounded-md border p-3"
+              className="flex flex-wrap items-center gap-3 rounded-md border p-3 sm:gap-4"
             >
-              <div className="flex flex-1 items-center gap-3">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
                 <span className="font-mono text-lg">{tc.currency.symbol}</span>
                 <div>
                   <div className="flex items-center gap-2 font-medium">
@@ -108,7 +108,7 @@ export function MonedasClient({ initial }: Props) {
                 </div>
               )}
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {tc.isActive && !tc.isPrimary && (
                   <Button
                     variant="outline"
@@ -131,7 +131,7 @@ export function MonedasClient({ initial }: Props) {
                   </Button>
                 )}
 
-                <div className="flex flex-col items-end gap-1">
+                <div className="flex shrink-0 flex-col items-end gap-1">
                   <Switch
                     checked={tc.isActive}
                     onCheckedChange={(v) => onToggle(tc.currency.code, v)}

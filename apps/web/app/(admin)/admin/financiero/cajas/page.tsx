@@ -55,7 +55,7 @@ export default async function CajasPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Cajas</h1>
+        <h1 className="text-xl font-semibold sm:text-2xl">Cajas</h1>
         <p className="text-sm text-muted-foreground">
           Sesiones de caja del POS — apertura, cobros, devoluciones y cierre con conteo físico.
         </p>
@@ -82,7 +82,7 @@ export default async function CajasPage() {
           <CardDescription>Últimas 200 sesiones</CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto p-0">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[900px] text-sm">
             <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
               <tr>
                 <th className="px-3 py-2 text-left">Estado</th>

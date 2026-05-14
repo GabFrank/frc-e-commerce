@@ -8,9 +8,9 @@ export default async function ProveedoresPage() {
   const suppliers = await listSuppliers();
   return (
     <div className="space-y-6 max-w-4xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Proveedores</h1>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl font-semibold sm:text-2xl">Proveedores</h1>
           <p className="text-sm text-muted-foreground">
             Quienes te venden mercadería. Usados al crear órdenes de compra.
           </p>

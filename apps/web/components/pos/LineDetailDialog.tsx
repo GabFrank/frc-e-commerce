@@ -105,7 +105,7 @@ export function LineDetailDialog({ variant, ctx, onClose }: Props) {
   return (
     <>
       <Dialog open onOpenChange={(o) => !o && onClose()}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-h-[92vh] w-[calc(100vw-1rem)] max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalle de línea</DialogTitle>
           </DialogHeader>
@@ -117,14 +117,14 @@ export function LineDetailDialog({ variant, ctx, onClose }: Props) {
                 alt={variant.variantName}
                 width={96}
                 height={96}
-                className="h-24 w-24 rounded object-cover"
+                className="h-20 w-20 shrink-0 rounded object-cover sm:h-24 sm:w-24"
               />
             ) : (
-              <div className="flex h-24 w-24 items-center justify-center rounded bg-muted text-muted-foreground">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground sm:h-24 sm:w-24">
                 <Package className="h-6 w-6" />
               </div>
             )}
-            <div className="flex-1 text-sm">
+            <div className="min-w-0 flex-1 text-sm">
               <div className="font-medium">{variant.productName}</div>
               <div className="text-muted-foreground">{variant.variantName}</div>
               {variant.attributesLabel && (
@@ -136,7 +136,7 @@ export function LineDetailDialog({ variant, ctx, onClose }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="text-sm">
               <span className="block mb-1 font-medium">Cantidad</span>
               <div className="flex items-center gap-1">
@@ -188,7 +188,7 @@ export function LineDetailDialog({ variant, ctx, onClose }: Props) {
             <RadioGroup
               value={discountKind}
               onValueChange={(v) => setDiscountKind(v as 'none' | 'pct' | 'amount')}
-              className="mt-1 grid grid-cols-3 gap-2"
+              className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-3"
             >
               <label className="flex items-center gap-2 rounded-md border p-2 text-sm cursor-pointer">
                 <RadioGroupItem value="none" /> Sin descuento

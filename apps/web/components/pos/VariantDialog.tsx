@@ -97,7 +97,7 @@ export function VariantDialog({ productId, productName, onClose, onPick }: Props
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+      <DialogContent className="flex max-h-[92vh] max-w-2xl flex-col">
         <DialogHeader>
           <DialogTitle>Elegir variante</DialogTitle>
           <DialogDescription>{productName}</DialogDescription>

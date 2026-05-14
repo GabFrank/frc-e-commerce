@@ -35,43 +35,45 @@ export function ProveedoresClient({ initial }: { initial: Supplier[] }) {
           {initial.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sin proveedores cargados todavía.</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="text-xs text-muted-foreground">
-                <tr>
-                  <th className="text-left">Nombre</th>
-                  <th className="text-left">RUC/Doc</th>
-                  <th className="text-left">Contacto</th>
-                  <th className="text-left">Estado</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {initial.map((s) => (
-                  <tr key={s.id} className="border-t">
-                    <td className="py-2 font-medium">{s.name}</td>
-                    <td>{s.document ?? <span className="text-muted-foreground">—</span>}</td>
-                    <td>
-                      {s.contactName ?? '—'}
-                      {s.phone && <div className="text-xs text-muted-foreground">{s.phone}</div>}
-                    </td>
-                    <td>
-                      {s.isActive ? (
-                        <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-900">
-                          activo
-                        </span>
-                      ) : (
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-xs">inactivo</span>
-                      )}
-                    </td>
-                    <td className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => setEditing(s)}>
-                        Editar
-                      </Button>
-                    </td>
+            <div className="-mx-2 overflow-x-auto px-2">
+              <table className="w-full min-w-[600px] text-sm">
+                <thead className="text-xs text-muted-foreground">
+                  <tr>
+                    <th className="text-left">Nombre</th>
+                    <th className="text-left">RUC/Doc</th>
+                    <th className="text-left">Contacto</th>
+                    <th className="text-left">Estado</th>
+                    <th></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {initial.map((s) => (
+                    <tr key={s.id} className="border-t">
+                      <td className="py-2 font-medium">{s.name}</td>
+                      <td>{s.document ?? <span className="text-muted-foreground">—</span>}</td>
+                      <td>
+                        {s.contactName ?? '—'}
+                        {s.phone && <div className="text-xs text-muted-foreground">{s.phone}</div>}
+                      </td>
+                      <td>
+                        {s.isActive ? (
+                          <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-900">
+                            activo
+                          </span>
+                        ) : (
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-xs">inactivo</span>
+                        )}
+                      </td>
+                      <td className="text-right">
+                        <Button variant="ghost" size="sm" onClick={() => setEditing(s)}>
+                          Editar
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>

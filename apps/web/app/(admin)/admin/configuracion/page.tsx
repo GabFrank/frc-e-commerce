@@ -15,7 +15,7 @@ export default async function ConfiguracionPage() {
           <CardDescription>Información básica que aparece en el storefront</CardDescription>
         </CardHeader>
         <CardContent>
-          <dl className="grid grid-cols-[140px_1fr] gap-y-2 text-sm">
+          <dl className="grid grid-cols-1 gap-y-2 text-sm sm:grid-cols-[140px_1fr]">
             <dt className="text-muted-foreground">Nombre</dt>
             <dd>{tenant.name}</dd>
             <dt className="text-muted-foreground">Slug (URL)</dt>

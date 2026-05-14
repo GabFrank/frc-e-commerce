@@ -48,8 +48,8 @@ export default async function PedidosPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Pedidos</h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-semibold sm:text-2xl">Pedidos</h1>
         <span className="text-sm text-muted-foreground">
           {orders.length} pedido{orders.length !== 1 ? 's' : ''}
         </span>

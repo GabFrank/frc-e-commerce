@@ -56,7 +56,7 @@ export function PosCart({ canSeeCost, currency, onEditLine }: Props) {
               <Button
                 size="icon"
                 variant="outline"
-                className="h-6 w-6"
+                className="h-8 w-8"
                 onClick={() => setQuantity(l.id, l.quantity - 1)}
                 disabled={l.quantity <= 1}
               >
@@ -66,7 +66,7 @@ export function PosCart({ canSeeCost, currency, onEditLine }: Props) {
               <Button
                 size="icon"
                 variant="outline"
-                className="h-6 w-6"
+                className="h-8 w-8"
                 onClick={() => setQuantity(l.id, l.quantity + 1)}
               >
                 +

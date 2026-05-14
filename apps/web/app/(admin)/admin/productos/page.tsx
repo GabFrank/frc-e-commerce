@@ -206,8 +206,8 @@ export default async function ProductsPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Productos</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-semibold sm:text-2xl">Productos</h1>
         <Link href="/admin/productos/new">
           <Button>+ Nuevo producto</Button>
         </Link>

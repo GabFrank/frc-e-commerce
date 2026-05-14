@@ -30,7 +30,7 @@ export default async function ReportesLayout({ children }: { children: React.Rea
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">Reportes</h1>
+        <h1 className="text-xl font-semibold sm:text-2xl">Reportes</h1>
         <p className="text-sm text-muted-foreground">
           Métricas del negocio. Los filtros aplican a la pestaña activa.
         </p>

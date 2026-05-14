@@ -101,18 +101,18 @@ export default async function PedidoDetailPage({ params }: PageProps) {
   return (
     <div className="max-w-4xl">
       {/* Header */}
-      <div className="mb-6 flex items-start justify-between">
-        <div>
+      <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-start">
+        <div className="min-w-0">
           <Link
             href="/admin/pedidos"
             className="mb-2 inline-block text-sm text-muted-foreground hover:underline"
           >
             Pedidos
           </Link>
-          <h1 className="font-mono text-2xl font-semibold">{o.orderNumber}</h1>
+          <h1 className="break-all font-mono text-xl font-semibold sm:text-2xl">{o.orderNumber}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{formattedDate}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {hasReversals && o.status !== 'cancelled' && (
             <Badge variant="warning">Con devoluciones</Badge>
           )}
@@ -228,7 +228,7 @@ export default async function PedidoDetailPage({ params }: PageProps) {
 
         {/* Totals */}
         <div className="mt-3 flex justify-end">
-          <div className="w-64 space-y-1 text-sm">
+          <div className="w-full max-w-xs space-y-1 text-sm sm:w-64">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
               <span>{formatMoney({ amount: o.subtotal, currency })}</span>

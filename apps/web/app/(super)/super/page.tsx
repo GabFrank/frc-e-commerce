@@ -9,7 +9,7 @@ export default async function SuperHome() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
+      <h1 className="text-xl font-semibold sm:text-2xl">Dashboard</h1>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader>

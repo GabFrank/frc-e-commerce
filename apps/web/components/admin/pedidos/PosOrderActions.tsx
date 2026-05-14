@@ -100,7 +100,8 @@ export function PosOrderActions({ orderId, channel, status, lines }: Props) {
                 Indicá la cantidad a devolver de cada línea. Solo se permite hasta lo no devuelto/cancelado.
               </DialogDescription>
             </DialogHeader>
-            <table className="w-full text-sm">
+            <div className="-mx-1 overflow-x-auto px-1">
+            <table className="w-full min-w-[480px] text-sm">
               <thead className="text-xs text-muted-foreground">
                 <tr>
                   <th className="text-left">Línea</th>
@@ -139,6 +140,7 @@ export function PosOrderActions({ orderId, channel, status, lines }: Props) {
                 })}
               </tbody>
             </table>
+            </div>
             {error && (
               <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>
             )}

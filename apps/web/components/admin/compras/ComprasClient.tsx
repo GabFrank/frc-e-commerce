@@ -198,7 +198,7 @@ export function ComprasClient({
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[720px] text-sm">
                 <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2 text-left">PO</th>
@@ -262,7 +262,7 @@ export function ComprasClient({
             Mostrando {(filters.page - 1) * filters.pageSize + 1}–
             {Math.min(filters.page * filters.pageSize, total)} de {total}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <label className="text-xs text-muted-foreground">Por página</label>
             <Select
               value={String(filters.pageSize)}
@@ -284,7 +284,7 @@ export function ComprasClient({
             >
               ← Anterior
             </Button>
-            <span className="text-xs text-muted-foreground">
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
               {filters.page} / {totalPages}
             </span>
             <Button
