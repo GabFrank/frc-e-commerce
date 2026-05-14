@@ -29,26 +29,26 @@ export function AdminSidebarContent({
 
   const linkClass = (href: string) => {
     const active = pathname === href || pathname.startsWith(href + '/');
-    return `rounded px-2 py-1.5 hover:bg-muted ${active ? 'bg-muted font-medium' : ''}`;
+    return `flex items-center rounded px-2 py-2.5 md:py-1.5 hover:bg-muted ${active ? 'bg-muted font-medium' : ''}`;
   };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-6">
-        <Link href="/admin" className="font-semibold" onClick={onNavigate}>
+        <Link href="/admin" className="text-base font-semibold md:text-sm" onClick={onNavigate}>
           {config.tenantName}
         </Link>
-        <p className="mt-1 text-xs text-muted-foreground">Admin</p>
+        <p className="mt-1 text-sm text-muted-foreground md:text-xs">Admin</p>
         <a
           href="/"
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+          className="mt-2 inline-flex items-center gap-1 text-sm text-primary hover:underline md:text-xs"
         >
           ↗ Ver tienda pública
         </a>
       </div>
-      <nav className="flex flex-1 min-h-0 flex-col gap-1 overflow-y-auto text-sm">
+      <nav className="flex flex-1 min-h-0 flex-col gap-1 overflow-y-auto text-base md:text-sm">
         <Link href="/admin/productos" className={linkClass('/admin/productos')} onClick={onNavigate}>
           Productos
         </Link>
@@ -75,23 +75,23 @@ export function AdminSidebarContent({
         )}
         <Link
           href="/pos"
-          className="mt-2 rounded bg-primary px-2 py-1.5 text-center font-medium text-primary-foreground hover:bg-primary/90"
+          className="mt-2 rounded bg-primary px-2 py-2.5 text-center font-medium text-primary-foreground hover:bg-primary/90 md:py-1.5"
           onClick={onNavigate}
         >
           Abrir POS →
         </Link>
       </nav>
-      <div className="mt-4 border-t pt-4 text-xs space-y-2">
+      <div className="mt-4 space-y-2 border-t pt-4 text-sm md:text-xs">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-muted-foreground truncate">{config.userEmail}</p>
+            <p className="truncate text-muted-foreground">{config.userEmail}</p>
             <p className="mt-1 text-muted-foreground/80">Rol: {config.role}</p>
           </div>
           <ThemeToggle />
         </div>
         <Link
           href="/mis-tiendas"
-          className="block rounded px-2 py-1.5 text-muted-foreground hover:bg-muted"
+          className="flex items-center rounded px-2 py-2 text-muted-foreground hover:bg-muted md:py-1.5"
           onClick={onNavigate}
         >
           ← Mis tiendas
@@ -99,7 +99,7 @@ export function AdminSidebarContent({
         {config.isSuperAdmin && (
           <Link
             href="/super"
-            className="block rounded px-2 py-1.5 text-muted-foreground hover:bg-muted"
+            className="flex items-center rounded px-2 py-2 text-muted-foreground hover:bg-muted md:py-1.5"
             onClick={onNavigate}
           >
             Panel super

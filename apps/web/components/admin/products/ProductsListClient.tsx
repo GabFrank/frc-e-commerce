@@ -95,7 +95,7 @@ export function ProductsListClient({ rows, total, filters }: Props) {
       {/* Filtros */}
       <div className="flex flex-wrap items-end gap-2 rounded-md border bg-card p-3">
         <form onSubmit={submitSearch} className="flex-1 min-w-[200px]">
-          <label className="text-xs text-muted-foreground">Búsqueda</label>
+          <label className="text-sm text-muted-foreground md:text-xs">Búsqueda</label>
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -104,7 +104,7 @@ export function ProductsListClient({ rows, total, filters }: Props) {
           />
         </form>
         <div>
-          <label className="text-xs text-muted-foreground">Estado</label>
+          <label className="text-sm text-muted-foreground md:text-xs">Estado</label>
           <Select
             value={filters.status}
             onChange={(e) => updateParams({ status: e.target.value })}
@@ -117,7 +117,7 @@ export function ProductsListClient({ rows, total, filters }: Props) {
           </Select>
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">Stock</label>
+          <label className="text-sm text-muted-foreground md:text-xs">Stock</label>
           <Select
             value={filters.stock}
             onChange={(e) => updateParams({ stock: e.target.value })}
@@ -129,7 +129,7 @@ export function ProductsListClient({ rows, total, filters }: Props) {
           </Select>
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">Género</label>
+          <label className="text-sm text-muted-foreground md:text-xs">Género</label>
           <Select
             value={filters.gender}
             onChange={(e) => updateParams({ gender: e.target.value })}
@@ -205,7 +205,7 @@ export function ProductsListClient({ rows, total, filters }: Props) {
             {Math.min(filters.page * filters.pageSize, total)} de {total}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <label className="text-xs text-muted-foreground">Por página</label>
+            <label className="text-sm text-muted-foreground md:text-xs">Por página</label>
             <Select
               value={String(filters.pageSize)}
               onChange={(e) => updateParams({ pageSize: e.target.value, page: 1 })}

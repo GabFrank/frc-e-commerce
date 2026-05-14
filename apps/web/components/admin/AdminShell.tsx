@@ -29,12 +29,12 @@ export function AdminShell({
           type="button"
           onClick={() => setDrawerOpen(true)}
           aria-label="Abrir menú"
-          className="inline-flex h-9 w-9 items-center justify-center rounded hover:bg-muted"
+          className="inline-flex h-11 w-11 items-center justify-center rounded hover:bg-muted"
         >
           <Menu className="h-5 w-5" />
         </button>
-        <div className="truncate text-sm font-semibold">{config.tenantName}</div>
-        <div className="w-9" aria-hidden />
+        <div className="truncate text-base font-semibold">{config.tenantName}</div>
+        <div className="w-11" aria-hidden />
       </header>
 
       {/* Desktop sidebar */}

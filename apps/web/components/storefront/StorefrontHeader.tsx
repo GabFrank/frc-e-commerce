@@ -45,7 +45,7 @@ export function StorefrontHeader({ tenantName }: { tenantName: string }) {
             type="button"
             onClick={() => setDrawerOpen(true)}
             aria-label="Abrir menú"
-            className="inline-flex h-9 w-9 items-center justify-center rounded hover:bg-muted"
+            className="inline-flex h-11 w-11 items-center justify-center rounded hover:bg-muted"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -61,7 +61,7 @@ export function StorefrontHeader({ tenantName }: { tenantName: string }) {
                 key={item.href}
                 href={item.href}
                 onClick={() => setDrawerOpen(false)}
-                className="rounded px-3 py-2 hover:bg-muted"
+                className="flex items-center rounded px-3 py-3 hover:bg-muted"
               >
                 {item.label}
               </Link>

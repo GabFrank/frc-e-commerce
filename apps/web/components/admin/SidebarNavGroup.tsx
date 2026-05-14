@@ -28,7 +28,7 @@ export function SidebarNavGroup({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left hover:bg-muted"
+        className="flex w-full items-center justify-between rounded px-2 py-2.5 text-left hover:bg-muted md:py-1.5"
       >
         <span>{label}</span>
         {open ? (
@@ -46,7 +46,7 @@ export function SidebarNavGroup({
                 key={it.href}
                 href={it.href}
                 onClick={onNavigate}
-                className={`rounded px-2 py-1 text-sm ${
+                className={`flex items-center rounded px-2 py-2 text-base md:py-1 md:text-sm ${
                   active ? 'bg-muted font-medium' : 'hover:bg-muted'
                 }`}
               >
