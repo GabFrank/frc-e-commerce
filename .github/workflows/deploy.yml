@@ -161,15 +161,20 @@ jobs:
           USER: ${{ secrets.DROPLET_USER }}
         run: |
           set -euo pipefail
-          for i in $(seq 1 30); do
-            if ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new "$USER@$HOST" \
-                'sudo /usr/bin/systemctl is-active --quiet frc-ecommerce.service'; then
+          # NB: no usar --quiet porque la regla de sudoers compara argumentos
+          # exactos y no permite flags extra. is-active retorna "active" / "inactive"
+          # con exit code apropiado.
+          for i in $(seq 1 45); do
+            status=$(ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new "$USER@$HOST" \
+              'sudo /usr/bin/systemctl is-active frc-ecommerce.service' 2>/dev/null || echo "unknown")
+            if [[ "$status" == "active" ]]; then
               echo "Servicio activo en intento $i"
               exit 0
             fi
+            echo "Intento $i: $status"
             sleep 2
           done
-          echo "El servicio no llegó a active después de 60s" >&2
+          echo "El servicio no llegó a active después de 90s" >&2
           ssh -i ~/.ssh/id_ed25519 "$USER@$HOST" 'sudo /usr/bin/systemctl status frc-ecommerce.service' || true
           exit 1
 
