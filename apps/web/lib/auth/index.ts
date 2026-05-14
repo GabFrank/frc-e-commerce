@@ -22,9 +22,26 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24,
     cookieCache: { enabled: true, maxAge: 5 * 60 },
   },
-  trustedOrigins: [
-    process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
-  ],
+  trustedOrigins: buildTrustedOrigins(),
 });
+
+function buildTrustedOrigins(): string[] {
+  const base =
+    process.env.BETTER_AUTH_URL ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    'http://localhost:3000';
+  const origins = new Set<string>([base]);
+
+  // BETTER_AUTH_TRUSTED_ORIGINS permite agregar orígenes extra separados por
+  // coma. Soporta wildcards de better-auth (ej. "https://*.frc-ecommerce.com").
+  const extra = process.env.BETTER_AUTH_TRUSTED_ORIGINS;
+  if (extra) {
+    for (const o of extra.split(',')) {
+      const trimmed = o.trim();
+      if (trimmed) origins.add(trimmed);
+    }
+  }
+  return [...origins];
+}
 
 export type Session = typeof auth.$Infer.Session;
