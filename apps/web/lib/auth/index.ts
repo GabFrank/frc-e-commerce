@@ -3,6 +3,11 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db } from '@/lib/db';
 import * as schema from '@frc-e-commerce/db/schema';
 
+// COOKIE_DOMAIN permite compartir la sesión entre subdominios (multi-tenancy).
+// Ej: ".frc-ecommerce.com" permite que la sesión persista al saltar de
+// app.frc-ecommerce.com a frc.frc-ecommerce.com.
+const COOKIE_DOMAIN = process.env.AUTH_COOKIE_DOMAIN;
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: 'pg',
@@ -23,6 +28,16 @@ export const auth = betterAuth({
     cookieCache: { enabled: true, maxAge: 5 * 60 },
   },
   trustedOrigins: buildTrustedOrigins(),
+  ...(COOKIE_DOMAIN
+    ? {
+        advanced: {
+          crossSubDomainCookies: {
+            enabled: true,
+            domain: COOKIE_DOMAIN,
+          },
+        },
+      }
+    : {}),
 });
 
 function buildTrustedOrigins(): string[] {
