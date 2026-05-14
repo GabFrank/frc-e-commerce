@@ -1,9 +1,7 @@
 import 'server-only';
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-export interface PresignedUploadResult {
-  uploadUrl: string;
+export interface UploadResult {
   publicUrl: string;
   key: string;
 }
@@ -33,30 +31,33 @@ function getClient(): S3Client {
 }
 
 /**
- * Genera una presigned URL PUT para que el cliente suba el archivo directo a R2.
- * Devuelve también la URL pública final (vía custom domain `R2_PUBLIC_URL`).
+ * Sube un archivo a R2 desde el servidor (server-to-server, sin CORS).
+ * El cliente manda el archivo a nuestro propio backend y este lo reenvía a R2;
+ * así evitamos depender de la config CORS del bucket por origen.
  */
-export async function getPresignedUploadUrl(
+export async function uploadR2Object(
   tenantSlug: string,
   filename: string,
-  contentType: string
-): Promise<PresignedUploadResult> {
+  contentType: string,
+  body: Buffer | Uint8Array
+): Promise<UploadResult> {
   if (!bucket) throw new Error('R2_BUCKET no configurado');
   if (!publicUrlBase) throw new Error('R2_PUBLIC_URL no configurado');
 
   const safe = filename.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
   const key = `tenants/${tenantSlug}/products/${Date.now()}-${safe}`;
 
-  const command = new PutObjectCommand({
-    Bucket: bucket,
-    Key: key,
-    ContentType: contentType,
-  });
+  await getClient().send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    })
+  );
 
-  const uploadUrl = await getSignedUrl(getClient(), command, { expiresIn: 300 });
   const publicUrl = `${publicUrlBase.replace(/\/$/, '')}/${key}`;
-
-  return { uploadUrl, publicUrl, key };
+  return { publicUrl, key };
 }
 
 /**

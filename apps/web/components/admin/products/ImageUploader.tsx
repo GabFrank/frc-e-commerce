@@ -3,7 +3,6 @@
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { addProductImage, deleteProductImage } from '@/lib/actions/product';
-import { presignProductImageUpload } from '@/lib/actions/upload';
 import type { ProductImage } from '@frc-e-commerce/db/schema';
 import { SafeImage } from '@/components/storefront/safe-image';
 import { ImageLightbox } from '@/components/shared/image-lightbox';
@@ -38,28 +37,29 @@ export function ImageUploader({
 
     try {
       for (const file of Array.from(files)) {
-        // 1. Pedir presigned URL al backend
-        const presign = await presignProductImageUpload(file.name, file.type, file.size);
-        if (!presign.ok) {
-          setError(presign.error);
-          continue;
-        }
-
-        // 2. PUT directo a R2 desde el browser
-        const putRes = await fetch(presign.uploadUrl, {
-          method: 'PUT',
-          body: file,
-          headers: { 'Content-Type': file.type },
+        // 1. Subir el archivo a nuestro propio backend (proxy → R2, same-origin sin CORS)
+        const formData = new FormData();
+        formData.append('file', file);
+        const uploadRes = await fetch('/api/admin/upload-image', {
+          method: 'POST',
+          body: formData,
         });
-        if (!putRes.ok) {
-          setError(`Error subiendo a R2: ${putRes.status} ${putRes.statusText}`);
+        const upload = (await uploadRes.json().catch(() => null)) as
+          | { ok: true; key: string; url: string }
+          | { ok: false; error: string }
+          | null;
+        if (!uploadRes.ok || !upload || !upload.ok) {
+          setError(
+            (upload && !upload.ok && upload.error) ||
+              `Error subiendo imagen (${uploadRes.status})`
+          );
           continue;
         }
 
-        // 3. Persistir registro en DB
+        // 2. Persistir registro en DB
         const res = await addProductImage(productId, {
-          r2Key: presign.key,
-          url: presign.publicUrl,
+          r2Key: upload.key,
+          url: upload.url,
           alt: file.name,
           position: images.length,
           variantId,
@@ -77,8 +77,8 @@ export function ImageUploader({
             productId,
             tenantId: '',
             variantId,
-            r2Key: presign.key,
-            url: presign.publicUrl,
+            r2Key: upload.key,
+            url: upload.url,
             alt: file.name,
             position: prev.length,
           },
